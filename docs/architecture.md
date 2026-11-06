@@ -46,6 +46,22 @@ Frames follow the vanilla Protocol 777 wire format:
 - No terrain chunks, block entities, or physics ticks are allocated.
 - A periodic heartbeat ping/pong (`KeepAlive`) monitors connection health and measures player round-trip latency.
 
+### 2.4 Priority Queue & HUD Engine (`zenith-transit`, `zenith-display`)
+- **Tier Ordering**: Guaranteed priority levels (Staff, VIP, Standard, Custom) strictly partitioned with FIFO fairness within tiers.
+- **Latency-Optimized Ping Sorting**: Within the same tier, lower latency connections drain first to minimize head-of-line blocking and maximize batch transfer efficiency.
+- **Health-Adaptive Wave Draining**: Batch transfer sizes and wave intervals adjust dynamically based on target server tick times (MSPT) and TPS to prevent backend overload.
+- **Dynamic HUD Feedback**: SmallCaps formatted text, animated BossBar progress bars, rate-limited Actionbar ETA updates, and native Minecraft sound cues (`button.click`, `entity.experience_orb.pickup`).
+
+### 2.5 Multi-Target Operation: Universal & Horizon Native Modes
+- **Universal Mode (Vanilla, Paper, Fabric, Velocity, Gate)**:
+  - Standard Protocol 777 handshake, configuration, and play loop.
+  - Periodic Vanilla Server List Ping polling to evaluate backend availability and latency.
+  - Native `0x7C Transfer` packet dispatch for client-side redirection without kicking players to the main menu.
+  - Velocity Modern Forwarding support (HMAC SHA-256) for transparent proxy authentication.
+- **Horizon Native Turbo Mode (Full-Rust Fast-Path)**:
+  - Sub-millisecond IPC health telemetry over Horizon dedicated server's local control socket (`ctl.sock`), reading exact microsecond MSPT without network round-trips.
+  - Pre-warmed arrival hand-overs via Horizon's `#7484` transfer protocol (`player-expect` / `player-confirm`), letting target servers allocate player state in RAM ahead of packet arrival for zero-freeze transitions.
+
 ---
 
 ## 3. Invariants & Guarantees

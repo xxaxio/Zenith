@@ -17,9 +17,10 @@ Zenith is a standalone limbo and queue server built in Rust for [Horizon](https:
 | **Dynamic HUD Display** | Done (Phase 3) | Protocol 777 BossBar, SmallCaps Actionbar, sound cues & instant transfer (`zenith-display`) |
 | **Totem Crash Recovery** | Planned (Phase 4) | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
 | **HMAC Forwarding Support** | Planned (Phase 4) | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
-| **Seamless Transfer** | Planned (Phase 4) | Client-side transfer packet dispatch without disconnect or loading screens (`zenith-transit`) |
-| **Prometheus Telemetry** | Planned (Phase 5) | Real-time connection count, drain rate, and memory RSS metrics (`zenith-app`) |
-| **Synthetic Testkit & Mocks** | Planned (Phase 5) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
+| **Universal Seamless Transfer** | Planned (Phase 4) | Client-side transfer packet dispatch (`0x7C`) without disconnect or loading screens (`zenith-transit`) |
+| **Horizon Turbo Fast-Path** | Planned (Phase 5) | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) |
+| **Prometheus Telemetry** | Planned (Phase 5) | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
+| **Synthetic Testkit & Mocks** | Planned (Phase 6) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
 | **Benchmark Harness** | Planned (Phase 6) | Multi-scenario load testing, bot simulations, and memory profiling tool (`zenith-bench`) |
 
 *Status definitions: `Done` (merged & verified in CI), `In progress` (under active implementation), `Planned` (scheduled in project phases).*
