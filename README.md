@@ -10,11 +10,11 @@ Zenith is a specialized, zero-physical-world virtual server designed to hold, qu
 
 | Component | Status | Description |
 |---|---|---|
-| **Zero-Chunk Dimension** | In progress | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
-| **Lightweight Async Actors** | In progress | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
+| **Zero-Chunk Dimension** | Done | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
+| **Lightweight Async Actors** | Done | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
 | **Priority Queue Scheduler** | Planned | FIFO ordering with VIP overrides and rate-controlled draining (`zenith-transit`) |
 | **Dynamic HUD Display** | Planned | Real-time BossBar progression, Actionbar ETA text, and sound cues (`zenith-display`) |
-| **Defensive Cybersecurity** | In progress | Anti-Slowloris socket timers, strict frame size limits, rate limiting (`zenith-shield`) |
+| **Defensive Cybersecurity** | Done | Anti-Slowloris socket timers, strict frame size limits, rate limiting (`zenith-shield`) |
 | **Totem Crash Recovery** | Planned | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
 | **HMAC Forwarding Support** | Planned | Cryptographic verification of forwarded player identities (`zenith-wire`) |
 | **Seamless Transfer** | Planned | Client-side transfer packet dispatch without disconnect or loading screens (`zenith-transit`) |

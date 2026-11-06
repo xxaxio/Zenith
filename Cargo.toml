@@ -28,6 +28,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "2.0"
 
+# Minecraft protocol of Horizon, pinned to one commit
+horizon-protocol = { git = "https://github.com/horizon-rust/horizon", rev = "41f822b659789780f58d32c63ddfb6887ea1b8bf" }
+horizon-world = { git = "https://github.com/horizon-rust/horizon", rev = "41f822b659789780f58d32c63ddfb6887ea1b8bf" }
+
 # Liaisons internes entre crates du workspace
 zenith-wire = { path = "crates/zenith-wire" }
 zenith-session = { path = "crates/zenith-session" }

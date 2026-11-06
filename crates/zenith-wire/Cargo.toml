@@ -10,6 +10,9 @@ authors.workspace = true
 [dependencies]
 bytes = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
+horizon-protocol = { workspace = true }
+horizon-world = { workspace = true }
 
 [lints]
 workspace = true

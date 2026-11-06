@@ -9,8 +9,13 @@ authors.workspace = true
 
 [dependencies]
 zenith-wire = { workspace = true }
+zenith-shield = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+bytes = { workspace = true }
+thiserror = { workspace = true }
+horizon-protocol = { workspace = true }
+horizon-world = { workspace = true }
 
 [lints]
 workspace = true
