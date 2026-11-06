@@ -99,6 +99,14 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ShieldedStream<S> {
             .map_err(ShieldError::Wire)
     }
 
+    /// Writes raw pre-framed packet bytes directly to the stream.
+    pub async fn write_raw_bytes(&mut self, bytes: &[u8]) -> Result<(), ShieldError> {
+        use tokio::io::AsyncWriteExt;
+        self.stream.write_all(bytes).await?;
+        self.stream.flush().await?;
+        Ok(())
+    }
+
     /// Access the underlying stream.
     pub fn get_ref(&self) -> &S {
         &self.stream

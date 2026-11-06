@@ -82,6 +82,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         }
     }
 
+    /// Sends raw pre-encoded packet bytes down the shielded connection stream.
+    pub async fn send_packet_bytes(&mut self, bytes: &[u8]) -> Result<(), SessionError> {
+        self.shield.write_raw_bytes(bytes).await?;
+        Ok(())
+    }
+
     /// Runs the session actor to completion.
     pub async fn run(&mut self) -> Result<(), SessionError> {
         self.handle_handshake().await?;

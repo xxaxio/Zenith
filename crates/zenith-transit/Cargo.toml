@@ -11,6 +11,10 @@ authors.workspace = true
 zenith-wire = { workspace = true }
 zenith-session = { workspace = true }
 tokio = { workspace = true }
+serde = { workspace = true }
+
+
+
 
 [lints]
 workspace = true

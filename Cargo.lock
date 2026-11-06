@@ -850,6 +850,9 @@ dependencies = [
 name = "zenith-display"
 version = "0.1.0"
 dependencies = [
+ "bytes",
+ "serde",
+ "serde_json",
  "zenith-wire",
 ]
 
@@ -901,6 +904,7 @@ dependencies = [
 name = "zenith-transit"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "tokio",
  "zenith-session",
  "zenith-wire",

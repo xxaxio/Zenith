@@ -174,6 +174,18 @@ pub async fn write_raw_packet<W: AsyncWrite + Unpin>(
     Ok(())
 }
 
+/// Encodes an in-memory packet frame: `[TotalLength: VarInt] [PacketID: VarInt] [Payload]`
+#[must_use]
+pub fn encode_packet(packet_id: i32, payload: &[u8]) -> Vec<u8> {
+    let id_len = varint_len(packet_id);
+    let total_len = id_len + payload.len();
+    let mut buf = BytesMut::with_capacity(varint_len(total_len as i32) + total_len);
+    write_varint(total_len as i32, &mut buf);
+    write_varint(packet_id, &mut buf);
+    buf.put_slice(payload);
+    buf.to_vec()
+}
+
 /// Handshake connection intent.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HandshakeIntent {

@@ -1,8 +1,8 @@
 # Zenith
 
-**An ultra-high-density virtual dimension, queue, cybersecurity & fallback engine in Rust for the Horizon and Minecraft ecosystem.**
+**A fast, lightweight limbo and queue server in Rust for Horizon and Meridian.**
 
-Zenith is a specialized, zero-physical-world virtual server designed to hold, queue, protect, and seamlessly route tens of thousands of players across Minecraft and [Horizon](https://github.com/horizon-rust/horizon) server networks in coordination with modern proxies like [Meridian](https://github.com/Akirabane/Meridian).
+Zenith is a standalone limbo and queue server built in Rust for [Horizon](https://github.com/horizon-rust/horizon) and [Meridian](https://github.com/Akirabane/Meridian) networks. It holds players in a lightweight virtual void, runs an adaptive priority queue, and transfers players seamlessly when backend servers restart or become available.
 
 ---
 
@@ -13,8 +13,8 @@ Zenith is a specialized, zero-physical-world virtual server designed to hold, qu
 | **Zero-Chunk Dimension** | Done (Phase 2) | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
 | **Lightweight Async Actors** | Done (Phase 2) | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
 | **Defensive Cybersecurity** | Done (Phase 2) | Anti-Slowloris socket timers, strict frame size limits, rate limiting (`zenith-shield`) |
-| **Priority Queue Scheduler** | In progress (Phase 3) | FIFO ordering with VIP overrides and rate-controlled draining (`zenith-transit`) |
-| **Dynamic HUD Display** | In progress (Phase 3) | Real-time BossBar progression, Actionbar ETA text, and sound cues (`zenith-display`) |
+| **Priority Queue Scheduler** | Done (Phase 3) | Health-adaptive wave queue, VIP priority & ping sorting (`zenith-transit`) |
+| **Dynamic HUD Display** | Done (Phase 3) | Protocol 777 BossBar, SmallCaps Actionbar, sound cues & instant transfer (`zenith-display`) |
 | **Totem Crash Recovery** | Planned (Phase 4) | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
 | **HMAC Forwarding Support** | Planned (Phase 4) | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
 | **Seamless Transfer** | Planned (Phase 4) | Client-side transfer packet dispatch without disconnect or loading screens (`zenith-transit`) |
