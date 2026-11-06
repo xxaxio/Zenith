@@ -4,9 +4,11 @@ Zenith is a high-throughput, zero-chunk virtual holding and transit gatekeeper d
 
 ---
 
-## 1. Modular Crate Topology
+## 1. System Topology & Data Flow
 
-Zenith separates protocol parsing, actor lifecycle, queue scheduling, and security hardening across 8 specialized crates:
+![Zenith Architecture Topology](assets/architecture-topology.svg)
+
+Zenith separates protocol parsing, actor lifecycle, queue scheduling, and security hardening across 8 specialized crates with `unsafe_code = "forbid"`:
 
 | Crate | Responsibility |
 |---|---|
