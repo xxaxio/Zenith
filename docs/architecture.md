@@ -8,7 +8,7 @@ Zenith is a high-throughput, zero-chunk virtual holding and transit gatekeeper d
 
 ![Zenith Architecture Topology](assets/architecture-topology.svg)
 
-Zenith separates protocol parsing, actor lifecycle, queue scheduling, and security hardening across 8 specialized crates with `unsafe_code = "forbid"`:
+Zenith separates protocol parsing, actor lifecycle, queue scheduling, and security hardening across 7 production crates (`unsafe_code = "forbid"`), backed by isolated testing and benchmarking harnesses:
 
 | Crate | Responsibility |
 |---|---|
@@ -19,7 +19,8 @@ Zenith separates protocol parsing, actor lifecycle, queue scheduling, and securi
 | `zenith-shield` | Defensive cybersecurity layer (anti-Slowloris, frame bounds, rate-limits). |
 | `zenith-totem` | Crash recovery and backend evacuation lifeline. |
 | `zenith-app` | Production server daemon binary (`src/main.rs`). |
-| `zenith-swarm` | Synthetic bot load testing harness and memory profiler. |
+| `zenith-testkit` | Scripted bot clients and backend fixtures for headless integration testing (`[dev-dependencies]`). |
+| `zenith-bench` | Standalone 50,000 concurrent connection load testing harness and memory profiler (`publish = false`). |
 
 ---
 

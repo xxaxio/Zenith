@@ -19,7 +19,8 @@ Zenith is a specialized, zero-physical-world virtual server designed to hold, qu
 | **HMAC Forwarding Support** | Planned (Phase 4) | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
 | **Seamless Transfer** | Planned (Phase 4) | Client-side transfer packet dispatch without disconnect or loading screens (`zenith-transit`) |
 | **Prometheus Telemetry** | Planned (Phase 5) | Real-time connection count, drain rate, and memory RSS metrics (`zenith-app`) |
-| **Benchmark Harness** | Planned (Phase 6) | Empirical load testing and memory profiling tool (`zenith-bench`) |
+| **Synthetic Testkit & Mocks** | Planned (Phase 5) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
+| **Benchmark Harness** | Planned (Phase 6) | 50k concurrent connection load testing and memory profiling tool (`zenith-bench`) |
 
 *Status definitions: `Done` (merged & verified in CI), `In progress` (under active implementation), `Planned` (scheduled in project phases).*
 
@@ -39,6 +40,8 @@ crates/
 ├── zenith-totem      # Crash evacuation lifeline & backend health poller
 └── zenith-app        # Production server executable daemon (main.rs)
 ```
+
+*Test utilities (`zenith-testkit`) are isolated in `[dev-dependencies]`, and the load-testing harness (`zenith-bench`) is an internal tool (`publish = false`) ensuring zero test footprint in production binaries.*
 
 ---
 
