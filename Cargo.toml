@@ -23,7 +23,7 @@ authors = ["xxaxio"]
 tokio = { version = "1.41", features = ["full"] }
 bytes = "1.8"
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+toml = "1.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "2.0"
