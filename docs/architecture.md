@@ -20,7 +20,7 @@ Zenith separates protocol parsing, actor lifecycle, queue scheduling, and securi
 | `zenith-totem` | Crash recovery and backend evacuation lifeline. |
 | `zenith-app` | Production server daemon binary (`src/main.rs`). |
 | `zenith-testkit` | Scripted bot clients and backend fixtures for headless integration testing (`[dev-dependencies]`). |
-| `zenith-bench` | Standalone 50,000 concurrent connection load testing harness and memory profiler (`publish = false`). |
+| `zenith-bench` | Standalone multi-scenario load testing harness and memory profiler (`publish = false`). |
 
 ---
 

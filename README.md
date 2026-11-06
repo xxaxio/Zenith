@@ -20,7 +20,7 @@ Zenith is a specialized, zero-physical-world virtual server designed to hold, qu
 | **Seamless Transfer** | Planned (Phase 4) | Client-side transfer packet dispatch without disconnect or loading screens (`zenith-transit`) |
 | **Prometheus Telemetry** | Planned (Phase 5) | Real-time connection count, drain rate, and memory RSS metrics (`zenith-app`) |
 | **Synthetic Testkit & Mocks** | Planned (Phase 5) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
-| **Benchmark Harness** | Planned (Phase 6) | 50k concurrent connection load testing and memory profiling tool (`zenith-bench`) |
+| **Benchmark Harness** | Planned (Phase 6) | Multi-scenario load testing, bot simulations, and memory profiling tool (`zenith-bench`) |
 
 *Status definitions: `Done` (merged & verified in CI), `In progress` (under active implementation), `Planned` (scheduled in project phases).*
 
