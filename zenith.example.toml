@@ -1,0 +1,54 @@
+# Zenith Configuration Example
+# Copy this file to zenith.toml and customize for your deployment.
+
+[network]
+# Address and port on which Zenith listens for proxy or direct connections
+bind_address = "0.0.0.0:25565"
+# Compression threshold in bytes (-1 to disable, 256 is standard)
+compression_threshold = 256
+# Maximum active connections held simultaneously
+max_connections = 10000
+
+[session]
+# Virtual dimension visual theme ("void", "starfield", "end")
+theme = "void"
+# Default spawn coordinates in the virtual dimension
+spawn_x = 0.0
+spawn_y = 64.0
+spawn_z = 0.0
+# Player abilities while in holding state
+allow_flight = true
+invulnerable = true
+
+[transit]
+# Target backend game server for successful dequeues
+target_backend = "127.0.0.1:25566"
+# Rate limit for draining the queue (players transferred per second)
+drain_rate_per_sec = 5
+# Queue timeout in seconds before notifying the client
+queue_timeout_sec = 600
+
+[display]
+# Dynamic BossBar title template (supports {pos}, {total}, {eta})
+bossbar_title = "Queue: #{pos} / {total} (Est. wait: {eta}s)"
+# BossBar color ("pink", "blue", "red", "green", "yellow", "purple", "white")
+bossbar_color = "purple"
+# BossBar division overlay ("progress", "notched_6", "notched_10", "notched_12", "notched_20")
+bossbar_style = "progress"
+# Actionbar text format
+actionbar_format = "You are in queue. Please hold your connection."
+
+[shield]
+# Maximum allowed payload size in bytes during pre-play phases (anti-buffer overflow)
+max_payload_bytes = 32768
+# Idle socket read timeout in seconds (anti-Slowloris protection)
+socket_read_timeout_sec = 15
+# Maximum connection attempts per IP per minute
+rate_limit_per_minute = 60
+
+[totem]
+# Interval in seconds between health pings to crashed/restarting backends
+health_check_interval_sec = 2
+# Notification title sent to evacuated players
+maintenance_title = "Server Restarting"
+maintenance_subtitle = "Reconnecting automatically when ready..."

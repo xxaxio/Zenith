@@ -1,0 +1,45 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/zenith-wire",
+    "crates/zenith-session",
+    "crates/zenith-transit",
+    "crates/zenith-display",
+    "crates/zenith-shield",
+    "crates/zenith-totem",
+    "crates/zenith-app",
+    "crates/zenith-swarm",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.85"
+repository = "https://github.com/xxaxio/Zenith"
+authors = ["xxaxio"]
+
+[workspace.dependencies]
+tokio = { version = "1.41", features = ["full"] }
+bytes = "1.8"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2.0"
+
+# Liaisons internes entre crates du workspace
+zenith-wire = { path = "crates/zenith-wire" }
+zenith-session = { path = "crates/zenith-session" }
+zenith-transit = { path = "crates/zenith-transit" }
+zenith-display = { path = "crates/zenith-display" }
+zenith-shield = { path = "crates/zenith-shield" }
+zenith-totem = { path = "crates/zenith-totem" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
