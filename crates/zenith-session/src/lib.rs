@@ -50,6 +50,17 @@ pub enum SessionError {
     ConnectionClosed,
 }
 
+/// Commands that can be dispatched to an active virtual session actor.
+#[derive(Debug, Clone)]
+pub enum SessionCommand {
+    /// Send pre-encoded raw packet bytes down the connection.
+    SendRaw(Vec<u8>),
+    /// Dispatches the Protocol 777 Transfer packet (ID 0x7C / 124) and closes the session.
+    Transfer { host: String, port: u16 },
+    /// Terminates the session cleanly.
+    Close,
+}
+
 /// A lightweight, zero-chunk virtual session actor holding a connected player.
 pub struct VirtualSession<S> {
     pub id: SessionId,
@@ -60,6 +71,7 @@ pub struct VirtualSession<S> {
     pub last_ping: Option<Instant>,
     pub ping_ms: u32,
     shield: ShieldedStream<S>,
+    pub cmd_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SessionCommand>>,
 }
 
 impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
@@ -79,6 +91,26 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             last_ping: None,
             ping_ms: 0,
             shield: ShieldedStream::new(stream, limits),
+            cmd_rx: None,
+        }
+    }
+
+    /// Spawns a new virtual session with a command channel and explicit shield limits.
+    pub fn with_command_channel(
+        stream: S,
+        limits: ShieldLimits,
+        cmd_rx: tokio::sync::mpsc::UnboundedReceiver<SessionCommand>,
+    ) -> Self {
+        Self {
+            id: SessionId::next(),
+            state: SessionState::Handshake,
+            username: None,
+            uuid: None,
+            connected_at: Instant::now(),
+            last_ping: None,
+            ping_ms: 0,
+            shield: ShieldedStream::new(stream, limits),
+            cmd_rx: Some(cmd_rx),
         }
     }
 
@@ -88,20 +120,41 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         Ok(())
     }
 
-    /// Runs the session actor to completion.
-    pub async fn run(&mut self) -> Result<(), SessionError> {
+    /// Completes handshake, login, and configuration.
+    ///
+    /// Returns `Ok(None)` if the connection was a Status ping request and completed.
+    /// Returns `Ok(Some((username, uuid)))` if the player reached InLimbo (Play state).
+    pub async fn complete_handshake_and_login(
+        &mut self,
+    ) -> Result<Option<(String, u128)>, SessionError> {
         self.handle_handshake().await?;
 
         match self.state {
             SessionState::Status => {
                 self.handle_status().await?;
+                Ok(None)
             }
             SessionState::Login => {
                 self.handle_login().await?;
                 self.handle_configuration().await?;
-                self.handle_limbo_loop().await?;
+                let username = self
+                    .username
+                    .clone()
+                    .unwrap_or_else(|| "Player".to_string());
+                let uuid = self.uuid.unwrap_or(0);
+                Ok(Some((username, uuid)))
             }
-            _ => {}
+            _ => Err(SessionError::UnexpectedPacket {
+                state: self.state,
+                id: 0,
+            }),
+        }
+    }
+
+    /// Runs the session actor to completion.
+    pub async fn run(&mut self) -> Result<(), SessionError> {
+        if self.complete_handshake_and_login().await?.is_some() {
+            self.handle_limbo_loop().await?;
         }
 
         self.state = SessionState::Terminated;
@@ -213,7 +266,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
     }
 
     /// Step 4: Virtual holding loop in InLimbo (Play state).
-    async fn handle_limbo_loop(&mut self) -> Result<(), SessionError> {
+    pub async fn handle_limbo_loop(&mut self) -> Result<(), SessionError> {
         // 1. Send minimal zero-chunk Login (Play) packet (Packet ID 0x32 / 50 in 26.3)
         let mut login_play = BytesMut::new();
         login_play.put_i32(self.id.0 as i32); // Entity ID
@@ -256,13 +309,35 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
 
         self.shield.write_packet(73, &pos_payload).await?;
 
-        // 3. Heartbeat loop: maintain session with periodic KeepAlive
+        // 3. Heartbeat loop: maintain session with periodic KeepAlive and handle commands
         let mut keepalive_timer = tokio::time::interval(Duration::from_secs(10));
         let mut keepalive_counter: i64 = 1000;
 
-        for _ in 0..3 {
-            // Heartbeat iteration for limbo hold
+        loop {
             tokio::select! {
+                cmd = async {
+                    match self.cmd_rx.as_mut() {
+                        Some(rx) => rx.recv().await,
+                        None => std::future::pending().await,
+                    }
+                } => {
+                    match cmd {
+                        Some(SessionCommand::SendRaw(bytes)) => {
+                            self.send_packet_bytes(&bytes).await?;
+                        }
+                        Some(SessionCommand::Transfer { host, port }) => {
+                            let mut payload = BytesMut::new();
+                            write_string(&host, &mut payload);
+                            write_varint(port as i32, &mut payload);
+                            self.shield.write_packet(124, &payload).await?; // 0x7C Transfer
+                            tokio::time::sleep(Duration::from_millis(50)).await;
+                            return Ok(());
+                        }
+                        Some(SessionCommand::Close) | None => {
+                            return Ok(());
+                        }
+                    }
+                }
                 _ = keepalive_timer.tick() => {
                     keepalive_counter += 1;
                     let ka = KeepAlive { id: keepalive_counter };
@@ -285,7 +360,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                         Err(ShieldError::Wire(WireError::Io(ref msg)))
                             if msg.contains("early eof")
                                 || msg.contains("channel closed")
-                                || msg.contains("broken pipe") =>
+                                || msg.contains("broken pipe")
+                                || msg.contains("forcibly closed")
+                                || msg.contains("reset by peer") =>
                         {
                             // Peer disconnected
                             return Ok(());
@@ -298,8 +375,6 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                 }
             }
         }
-
-        Ok(())
     }
 }
 
