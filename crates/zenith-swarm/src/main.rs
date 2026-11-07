@@ -77,7 +77,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let handle = tokio::spawn(async move {
-            if let Err(e) = run_single_bot(id, &target_clone, act_clone, succ_clone, fail_clone).await {
+            if let Err(e) =
+                run_single_bot(id, &target_clone, act_clone, succ_clone, fail_clone).await
+            {
                 error!(bot_id = id, error = %e, "Bot connection failed");
             }
         });
