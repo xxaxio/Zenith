@@ -12,12 +12,6 @@ pub use hmac::HmacForwarding;
 pub mod proxy;
 pub use proxy::{PROXY_V2_MAGIC, ProxyCommand, ProxyError, ProxyHeader, is_trusted_proxy};
 
-pub mod resource_pack;
-pub use resource_pack::{
-    RESOURCE_PACK_PUSH_PLAY_ID, RESOURCE_PACK_RESPONSE_PLAY_ID, ResourcePackAction,
-    ResourcePackPush, ResourcePackResponse,
-};
-
 /// Wire protocol errors.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum WireError {

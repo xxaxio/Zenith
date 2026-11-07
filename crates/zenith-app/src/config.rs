@@ -248,21 +248,6 @@ impl Default for ProxyConfig {
     }
 }
 
-/// Background resource pack preloading configuration for players in limbo.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ResourcePackConfig {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default)]
-    pub url: String,
-    #[serde(default)]
-    pub hash: String,
-    #[serde(default)]
-    pub required: bool,
-    #[serde(default)]
-    pub prompt: Option<String>,
-}
-
 /// Automated lifecycle notifications configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastConfig {
@@ -300,8 +285,6 @@ pub struct ZenithConfig {
     pub metrics: MetricsConfig,
     #[serde(default)]
     pub proxy: ProxyConfig,
-    #[serde(default)]
-    pub resource_pack: ResourcePackConfig,
     #[serde(default)]
     pub broadcast: BroadcastConfig,
 }
@@ -367,13 +350,6 @@ impl ZenithConfig {
         if let Ok(proxy_val) = env::var("ZENITH_PROXY_ENABLED") {
             config.proxy.enabled = proxy_val == "1" || proxy_val.eq_ignore_ascii_case("true");
         }
-        if let Ok(rp_url) = env::var("ZENITH_RESOURCE_PACK_URL") {
-            config.resource_pack.enabled = true;
-            config.resource_pack.url = rp_url;
-        }
-        if let Ok(rp_hash) = env::var("ZENITH_RESOURCE_PACK_HASH") {
-            config.resource_pack.hash = rp_hash;
-        }
 
         config
     }
@@ -392,7 +368,6 @@ mod tests {
         assert_eq!(config.shield.jail_duration_secs, 900);
         assert_eq!(config.metrics.bind, "0.0.0.0:25580");
         assert!(!config.proxy.enabled);
-        assert!(!config.resource_pack.enabled);
         assert!(config.broadcast.notify_on_backend_down);
 
         let toml_str = toml::to_string_pretty(&config).unwrap();

@@ -16,7 +16,6 @@ pub struct Live {
     pub errors: AtomicUsize,
     pub bytes_sent: AtomicU64,
     pub bytes_received: AtomicU64,
-    pub resource_packs_loaded: AtomicUsize,
     pub alerts_received: AtomicUsize,
     pub proxy_headers_sent: AtomicUsize,
 }
@@ -36,7 +35,6 @@ impl Live {
             errors: self.errors.load(Ordering::Relaxed),
             bytes_sent: self.bytes_sent.load(Ordering::Relaxed),
             bytes_received: self.bytes_received.load(Ordering::Relaxed),
-            resource_packs_loaded: self.resource_packs_loaded.load(Ordering::Relaxed),
             alerts_received: self.alerts_received.load(Ordering::Relaxed),
             proxy_headers_sent: self.proxy_headers_sent.load(Ordering::Relaxed),
         }
@@ -55,7 +53,6 @@ pub struct LiveSnapshot {
     pub errors: usize,
     pub bytes_sent: u64,
     pub bytes_received: u64,
-    pub resource_packs_loaded: usize,
     pub alerts_received: usize,
     pub proxy_headers_sent: usize,
 }

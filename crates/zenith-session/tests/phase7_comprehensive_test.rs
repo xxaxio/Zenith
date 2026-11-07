@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, duplex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, mpsc};
 
@@ -16,14 +16,13 @@ use zenith_display::{
     encode_subtitle_packet, encode_system_chat_packet, encode_title_packet,
     encode_title_times_packet,
 };
-use zenith_session::{SessionCommand, SessionEvent, SessionId, VirtualSession};
-use zenith_shield::{ConnectionTracker, ShieldLimits};
+use zenith_session::{SessionCommand, SessionId};
+use zenith_shield::ConnectionTracker;
 use zenith_totem::TotemEvent;
 use zenith_transit::GroupManager;
 use zenith_wire::{
-    Handshake, HandshakeIntent, LoginStart, PROTOCOL_VERSION, PROXY_V2_MAGIC, ProxyCommand,
-    ProxyHeader, ResourcePackAction, ResourcePackPush, ResourcePackResponse, is_trusted_proxy,
-    read_raw_packet, write_raw_packet,
+    Handshake, HandshakeIntent, PROTOCOL_VERSION, PROXY_V2_MAGIC, ProxyCommand, ProxyHeader,
+    is_trusted_proxy, read_raw_packet, write_raw_packet,
 };
 
 type ActiveSessions = Arc<
@@ -351,144 +350,7 @@ async fn test_proxy_protocol_v2_real_tcp_socket_ingress() {
 }
 
 // -----------------------------------------------------------------------------
-// TEST 2: Limbo Background Resource Pack Pre-Loading & Status Tracking
-// -----------------------------------------------------------------------------
-#[tokio::test]
-async fn test_resource_pack_limbo_preloading_and_response_lifecycle() {
-    let (client, server) = duplex(4096);
-    let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
-    let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-
-    let mut session = VirtualSession::with_command_channel(server, ShieldLimits::default(), cmd_rx);
-    session.set_event_sender(event_tx);
-
-    let pack_uuid: u128 = 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00;
-    let pack_url = "https://assets.horizon.dev/packs/server-pack.zip";
-    let pack_hash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
-    let pack_prompt = Some("Pre-caching Horizon server textures in queue...".to_string());
-
-    let client_task = tokio::spawn(async move {
-        let mut c = client;
-
-        // Complete Handshake & Login
-        let hs = Handshake {
-            protocol_version: PROTOCOL_VERSION,
-            server_address: "127.0.0.1".into(),
-            server_port: 25565,
-            intent: HandshakeIntent::Login,
-        };
-        write_raw_packet(&mut c, 0x00, &hs.encode()).await.unwrap();
-
-        let login = LoginStart {
-            name: "PackTester".into(),
-            uuid: 0x9876_5432_1000,
-        };
-        write_raw_packet(&mut c, 0x00, &login.encode())
-            .await
-            .unwrap();
-
-        let (login_succ_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
-        assert_eq!(login_succ_id, 0x02);
-        write_raw_packet(&mut c, 0x03, &[]).await.unwrap(); // Login ack
-
-        let (cfg_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
-        assert_eq!(cfg_id, 0x03);
-        write_raw_packet(&mut c, 0x03, &[]).await.unwrap(); // Finish config ack
-
-        // Enter Play state (Login packet 50)
-        let (play_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
-        assert_eq!(play_id, 50);
-
-        // Expect ResourcePackPush packet (82)
-        let mut got_pack_push = false;
-        for _ in 0..10 {
-            let (pkt_id, payload) = read_raw_packet(&mut c, 2048).await.unwrap();
-            if pkt_id == 82 {
-                got_pack_push = true;
-                let push = ResourcePackPush::decode(&payload).unwrap();
-                assert_eq!(push.uuid, 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00);
-                assert_eq!(push.url, "https://assets.horizon.dev/packs/server-pack.zip");
-                assert_eq!(push.hash, "4b825dc642cb6eb9a060e54bf8d69288fbee4904");
-                assert!(!push.required);
-                assert!(push.prompt.as_deref().unwrap().contains("Pre-caching"));
-
-                // Send 1st response: Accepted (action 3)
-                let resp1 = ResourcePackResponse {
-                    uuid: push.uuid,
-                    action: ResourcePackAction::Accepted,
-                };
-                write_raw_packet(&mut c, 44, &resp1.encode()).await.unwrap();
-
-                // Send 2nd response: Downloaded (action 4)
-                let resp2 = ResourcePackResponse {
-                    uuid: push.uuid,
-                    action: ResourcePackAction::Downloaded,
-                };
-                write_raw_packet(&mut c, 44, &resp2.encode()).await.unwrap();
-
-                // Send 3rd response: SuccessfullyLoaded (action 0)
-                let resp3 = ResourcePackResponse {
-                    uuid: push.uuid,
-                    action: ResourcePackAction::SuccessfullyLoaded,
-                };
-                write_raw_packet(&mut c, 44, &resp3.encode()).await.unwrap();
-                break;
-            }
-        }
-        assert!(
-            got_pack_push,
-            "Client did not receive Packet 82 (ResourcePackPush)"
-        );
-    });
-
-    let sender_task = tokio::spawn(async move {
-        // Wait until player completes login, then push pack
-        tokio::time::sleep(Duration::from_millis(80)).await;
-        cmd_tx
-            .send(SessionCommand::PushResourcePack {
-                uuid: pack_uuid,
-                url: pack_url.to_string(),
-                hash: pack_hash.to_string(),
-                required: false,
-                prompt: pack_prompt,
-            })
-            .unwrap();
-
-        // Keep session open briefly then close
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        let _ = cmd_tx.send(SessionCommand::Close);
-    });
-
-    let server_task = tokio::spawn(async move {
-        session.run().await.unwrap();
-    });
-
-    let (c_res, s_res, send_res) = tokio::join!(client_task, server_task, sender_task);
-    c_res.unwrap();
-    s_res.unwrap();
-    send_res.unwrap();
-
-    // Verify all 3 resource pack status updates were delivered through event channel
-    let mut actions_received = Vec::new();
-    while let Ok(event) = event_rx.try_recv() {
-        if let SessionEvent::ResourcePackStatus { action, .. } = event {
-            actions_received.push(action);
-        }
-    }
-
-    assert_eq!(
-        actions_received,
-        vec![
-            ResourcePackAction::Accepted,
-            ResourcePackAction::Downloaded,
-            ResourcePackAction::SuccessfullyLoaded,
-        ],
-        "Resource pack response actions mismatch"
-    );
-}
-
-// -----------------------------------------------------------------------------
-// TEST 3: Multi-Client Broadcast, Alert, Status & Staff Permissions
+// TEST 2: Multi-Client Broadcast, Alert, Status & Staff Permissions
 // -----------------------------------------------------------------------------
 #[tokio::test]
 async fn test_broadcast_and_alert_multiplayer_dispatch() {

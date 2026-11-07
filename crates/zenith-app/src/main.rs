@@ -65,7 +65,6 @@ struct CommandContext {
     health_rx: tokio::sync::watch::Receiver<BackendHealth>,
     totem_enabled: bool,
     hmac_forwarding: Option<HmacForwarding>,
-    rp_enabled: bool,
 }
 
 #[tokio::main]
@@ -577,7 +576,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         health_rx: cmd_health_rx,
         totem_enabled: config.totem.enabled,
         hmac_forwarding,
-        rp_enabled: config.resource_pack.enabled,
     });
 
     let loop_ctx = Arc::clone(&cmd_context);
@@ -598,13 +596,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } => {
                     loop_ctx.queue.lock().await.update_ping(session_id, ping_ms);
                 }
-                SessionEvent::ResourcePackStatus {
-                    session_id,
-                    uuid,
-                    action,
-                } => {
-                    debug!(session = ?session_id, uuid = ?uuid, ?action, "Client resource pack status received");
-                }
                 SessionEvent::Disconnected { session_id } => {
                     loop_ctx.queue.lock().await.remove(session_id);
                     loop_ctx.sessions.lock().await.remove(&session_id);
@@ -620,7 +611,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let loop_metrics = Arc::clone(&metrics);
     let proxy_enabled = config.proxy.enabled;
     let trusted_proxies = config.proxy.trusted_proxies.clone();
-    let rp_config = config.resource_pack.clone();
 
     loop {
         let (mut socket, peer_addr) = listener.accept().await?;
@@ -717,7 +707,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let target_clone = target_server.clone();
         let event_tx_clone = event_tx.clone();
         let task_metrics = Arc::clone(&loop_metrics);
-        let task_rp_config = rp_config.clone();
 
         tokio::spawn(async move {
             let _guard = _conn_guard;
@@ -788,25 +777,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = cmd_tx.send(SessionCommand::SendRaw(sub));
                     let title = encode_title_packet("§b§lᴢᴇɴɪᴛʜ");
                     let _ = cmd_tx.send(SessionCommand::SendRaw(title));
-
-                    // Preload resource pack in background if configured
-                    if task_rp_config.enabled && !task_rp_config.url.is_empty() {
-                        let mut uuid_bytes = [0u8; 16];
-                        let hash_bytes = task_rp_config.hash.as_bytes();
-                        for (idx, &b) in hash_bytes.iter().enumerate() {
-                            uuid_bytes[idx % 16] ^= b;
-                        }
-                        let pack_uuid = u128::from_be_bytes(uuid_bytes);
-
-                        let _ = cmd_tx.send(SessionCommand::PushResourcePack {
-                            uuid: pack_uuid,
-                            url: task_rp_config.url.clone(),
-                            hash: task_rp_config.hash.clone(),
-                            required: task_rp_config.required,
-                            prompt: task_rp_config.prompt.clone(),
-                        });
-                        debug!(session = ?session_id, player = %username, "Pushed background resource pack preload");
-                    }
 
                     // Register in active sessions map
                     sessions_clone
@@ -1490,17 +1460,6 @@ async fn handle_command(
             let m5 =
                 encode_system_chat_packet(&format!("§7  Latency / Info: {}", ping_text), false);
             let m6 = encode_system_chat_packet(
-                &format!(
-                    "§7  Resource Pack Preload: {}",
-                    if ctx.rp_enabled {
-                        "§aActive"
-                    } else {
-                        "§7Disabled"
-                    }
-                ),
-                false,
-            );
-            let m7 = encode_system_chat_packet(
                 "§8§m                                                  §r",
                 false,
             );
@@ -1511,7 +1470,6 @@ async fn handle_command(
             let _ = tx.send(SessionCommand::SendRaw(m4));
             let _ = tx.send(SessionCommand::SendRaw(m5));
             let _ = tx.send(SessionCommand::SendRaw(m6));
-            let _ = tx.send(SessionCommand::SendRaw(m7));
         }
         "broadcast" | "bc" => {
             if !is_staff {
@@ -1630,29 +1588,9 @@ async fn handle_command(
                     }
                     info!(by = %username, "Simulated Totem backend recovery alert triggered");
                 }
-                "pack" => {
-                    let pack_uuid = 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00;
-                    let pack_url = "https://assets.horizon.dev/packs/server-pack.zip".to_string();
-                    let pack_hash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904".to_string();
-                    let prompt =
-                        Some("Pre-caching Horizon server textures in queue...".to_string());
-                    let _ = tx.send(SessionCommand::PushResourcePack {
-                        uuid: pack_uuid,
-                        url: pack_url,
-                        hash: pack_hash,
-                        required: false,
-                        prompt,
-                    });
-                    let msg = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §aResource Pack push packet sent to your client!",
-                        false,
-                    );
-                    let _ = tx.send(SessionCommand::SendRaw(msg));
-                    info!(by = %username, "Resource Pack push packet sent to caller");
-                }
                 _ => {
                     let msg = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /test <crash | recovery | pack>",
+                        "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /test <crash | recovery>",
                         false,
                     );
                     let _ = tx.send(SessionCommand::SendRaw(msg));

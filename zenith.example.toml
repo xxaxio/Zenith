@@ -120,24 +120,6 @@ trusted_proxies = [
     "192.168.0.0/16"
 ]
 
-[resource_pack]
-# Background server resource pack preloading in Limbo.
-# Pushes texture packs (packet ID 82) to players while waiting in queue,
-# eliminating freeze and loading stalls upon backend transfer.
-enabled = false
-
-# Download URL pointing to the .zip resource pack.
-# url = "https://example.com/assets/server-pack.zip"
-
-# SHA-1 hash (40-char hex) of the resource pack for client-side caching.
-# hash = "0123456789abcdef0123456789abcdef01234567"
-
-# Whether the pack is mandatory for gameplay.
-required = false
-
-# Optional localized prompt shown on vanilla client prompt dialog.
-# prompt = "Pre-caching server textures while in queue..."
-
 [broadcast]
 # Automated lifecycle alert broadcasts when Totem health probing detects state changes.
 notify_on_backend_down = true
