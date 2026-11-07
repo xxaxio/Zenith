@@ -895,7 +895,10 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "zenith-display",
  "zenith-shield",
+ "zenith-totem",
+ "zenith-transit",
  "zenith-wire",
 ]
 

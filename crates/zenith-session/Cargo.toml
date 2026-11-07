@@ -17,5 +17,10 @@ thiserror = { workspace = true }
 horizon-protocol = { workspace = true }
 horizon-world = { workspace = true }
 
+[dev-dependencies]
+zenith-display = { workspace = true }
+zenith-transit = { workspace = true }
+zenith-totem = { workspace = true }
+
 [lints]
 workspace = true

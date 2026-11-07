@@ -182,6 +182,21 @@ impl ProxyHeader {
         out.extend_from_slice(&0u16.to_be_bytes()); // Length 0
         out
     }
+
+    /// Encodes this `ProxyHeader` into binary PROXY protocol v2 bytes.
+    #[must_use]
+    pub fn encode(&self) -> Vec<u8> {
+        match (self.command, self.src_addr, self.dst_addr) {
+            (ProxyCommand::Local, _, _) => Self::encode_local(),
+            (ProxyCommand::Proxy, Some(SocketAddr::V4(s)), Some(SocketAddr::V4(d))) => {
+                Self::encode_ipv4(s, d)
+            }
+            (ProxyCommand::Proxy, Some(SocketAddr::V6(s)), Some(SocketAddr::V6(d))) => {
+                Self::encode_ipv6(s, d)
+            }
+            _ => Self::encode_local(),
+        }
+    }
 }
 
 /// Checks whether an incoming IP belongs to a trusted proxy list.

@@ -112,6 +112,39 @@ impl ResourcePackPush {
 
         buf.to_vec()
     }
+
+    /// Deserializes a `ResourcePackPush` payload.
+    pub fn decode(payload: &[u8]) -> Result<Self, WireError> {
+        if payload.len() < 16 {
+            return Err(WireError::Underflow);
+        }
+        let mut buf = payload;
+        let uuid = buf.get_u128();
+        let url = crate::read_string(&mut buf, 32767)?;
+        let hash = crate::read_string(&mut buf, 40)?;
+        if !buf.has_remaining() {
+            return Err(WireError::Underflow);
+        }
+        let required = buf.get_u8() != 0;
+        let has_prompt = if buf.has_remaining() {
+            buf.get_u8() != 0
+        } else {
+            false
+        };
+        let prompt = if has_prompt && buf.has_remaining() {
+            Some(crate::read_string(&mut buf, 32767)?)
+        } else {
+            None
+        };
+
+        Ok(Self {
+            uuid,
+            url,
+            hash,
+            required,
+            prompt,
+        })
+    }
 }
 
 #[cfg(test)]
