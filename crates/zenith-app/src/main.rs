@@ -1,5 +1,10 @@
 //! Zenith: Fast, lightweight limbo and queue server in Rust for Horizon and Meridian.
 
+mod config;
+mod metrics;
+
+use config::ZenithConfig;
+use metrics::{ZenithMetrics, start_metrics_server};
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
@@ -14,8 +19,10 @@ use zenith_display::{
     encode_title_packet, encode_title_times_packet,
 };
 use zenith_session::{SessionCommand, SessionEvent, SessionId, VirtualSession};
-use zenith_shield::ShieldLimits;
-use zenith_totem::{BackendHealth, TotemConfig, TotemEvent, TotemLifeline};
+use zenith_shield::{ConnectionTracker, IpRateLimiter, RateLimitConfig, ShieldLimits};
+use zenith_totem::{
+    BackendHealth, HorizonTurboClient, TotemConfig, TotemEvent, TotemLifeline, TurboEndpoint,
+};
 use zenith_transit::{
     GroupManager, QueueEntry, SortingPolicy, TargetServerHealth, TransitConfig, TransitQueue,
 };
@@ -78,15 +85,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    let mut cli_config = None;
     let mut cli_mode = None;
     let mut cli_wave_size = None;
     let mut cli_wave_interval = None;
     let mut cli_target = None;
     let mut cli_bind = None;
+    let mut cli_no_shield = false;
 
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
+            "--config" | "-c" if i + 1 < args.len() => {
+                cli_config = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--no-shield" => {
+                cli_no_shield = true;
+                i += 1;
+            }
             "--mode" | "-m" if i + 1 < args.len() => {
                 cli_mode = Some(args[i + 1].clone());
                 i += 2;
@@ -113,30 +130,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let bind_addr = cli_bind
-        .or_else(|| env::var("ZENITH_BIND").ok())
-        .unwrap_or_else(|| "0.0.0.0:25565".to_string());
-    let target_server = cli_target
-        .or_else(|| env::var("ZENITH_TARGET").ok())
-        .unwrap_or_else(|| "127.0.0.1:25566".to_string());
-    let wave_size: usize = cli_wave_size
-        .or_else(|| {
-            env::var("ZENITH_WAVE_SIZE")
-                .ok()
-                .and_then(|s| s.parse().ok())
-        })
-        .unwrap_or(5);
-    let wave_interval_ms: u64 = cli_wave_interval
-        .or_else(|| {
-            env::var("ZENITH_WAVE_INTERVAL_MS")
-                .ok()
-                .and_then(|s| s.parse().ok())
-        })
-        .unwrap_or(4000);
-    let mode_str = cli_mode
-        .or_else(|| env::var("ZENITH_MODE").ok())
-        .unwrap_or_else(|| "limbo".to_string());
-    let mode = match mode_str.to_lowercase().as_str() {
+    let config_path = cli_config.map(PathBuf::from);
+    let mut config = ZenithConfig::load_or_default(config_path.as_deref());
+
+    if let Some(b) = cli_bind {
+        config.server.bind = b;
+    }
+    if let Some(t) = cli_target {
+        config.server.target = t;
+    }
+    if let Some(m) = cli_mode {
+        config.server.mode = m;
+    }
+    if let Some(w) = cli_wave_size {
+        config.queue.wave_size = w;
+    }
+    if let Some(interval) = cli_wave_interval {
+        config.queue.wave_interval_ms = interval;
+    }
+    if cli_no_shield {
+        config.shield.enabled = false;
+    }
+
+    let bind_addr = config.server.bind.clone();
+    let target_server = config.server.target.clone();
+    let wave_size = config.queue.wave_size;
+    let wave_interval_ms = config.queue.wave_interval_ms;
+    let mode = match config.server.mode.to_lowercase().as_str() {
         "queue" | "transit" => ZenithMode::Queue,
         "stress" | "benchmark" => ZenithMode::Stress,
         _ => ZenithMode::Limbo,
@@ -157,6 +177,69 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     info!("Listening for virtual limbo connections on {}", bind_addr);
 
+    // Operational Metrics Registry & Prometheus Exporter
+    let metrics = ZenithMetrics::new();
+    if config.metrics.enabled {
+        let metrics_bind = config.metrics.bind.clone();
+        let m = Arc::clone(&metrics);
+        tokio::spawn(async move {
+            if let Err(e) = start_metrics_server(metrics_bind, m).await {
+                error!(error = %e, "Failed to start Prometheus metrics exporter");
+            }
+        });
+    }
+
+    // Defensive Cybersecurity Layer: Rate Limiting & Concurrency Tracker
+    let shield_enabled = config.shield.enabled;
+    let rate_limiter = Arc::new(Mutex::new(IpRateLimiter::new(RateLimitConfig {
+        ip_rate_limit: config.shield.ip_rate_limit,
+        ip_burst_capacity: config.shield.ip_burst_capacity,
+        subnet_rate_limit: config.shield.subnet_rate_limit,
+        subnet_burst_capacity: config.shield.subnet_burst_capacity,
+        violation_threshold: config.shield.violation_threshold,
+        jail_duration: Duration::from_secs(config.shield.jail_duration_secs),
+    })));
+    let conn_tracker = ConnectionTracker::new(config.shield.max_connections_per_ip);
+
+    // Background task to prune expired jails and idle rate limit buckets
+    let prune_limiter = Arc::clone(&rate_limiter);
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+            prune_limiter.lock().await.prune(Instant::now());
+        }
+    });
+
+    // Horizon Native Turbo Fast-Path (full-Rust IPC ctl.sock telemetry & pre-warming)
+    let turbo_client = if config.turbo.enabled {
+        let ep = config
+            .turbo
+            .endpoint
+            .as_deref()
+            .unwrap_or("127.0.0.1:40000");
+        info!(endpoint = %ep, "Horizon Native Turbo Mode active");
+        Some(Arc::new(HorizonTurboClient::new(TurboEndpoint::parse_str(
+            ep,
+        ))))
+    } else {
+        None
+    };
+
+    if let Some(ref turbo) = turbo_client {
+        let t = Arc::clone(turbo);
+        let m = Arc::clone(&metrics);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(500));
+            loop {
+                interval.tick().await;
+                if let Ok(st) = t.query_status().await {
+                    m.turbo_mspt_us.store(st.mspt_us, Ordering::Relaxed);
+                }
+            }
+        });
+    }
+
     let transit_config = TransitConfig {
         sorting_policy: SortingPolicy::PingAscending,
         nominal_wave_size: wave_size,
@@ -164,15 +247,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
     let queue = Arc::new(Mutex::new(TransitQueue::new(transit_config)));
-    let groups_path = env::var("ZENITH_GROUPS_FILE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("E:\\Zenith\\groups.toml"));
+    let groups_path = config
+        .queue
+        .groups_file
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("groups.toml"));
     let group_manager = Arc::new(Mutex::new(GroupManager::new(Some(groups_path))));
     let hud = Arc::new(HudRenderer::new(DisplayConfig::default()));
     let active_sessions: ActiveSessions = Arc::new(Mutex::new(HashMap::new()));
     let is_queue_active = Arc::new(AtomicBool::new(mode == ZenithMode::Queue));
 
-    let hmac_secret = env::var("ZENITH_HMAC_SECRET").ok();
+    let hmac_secret = config.forwarding.hmac_secret.clone();
     let hmac_forwarding = hmac_secret.map(|s| HmacForwarding::new(s.as_bytes()));
     if hmac_forwarding.is_some() {
         info!("HMAC-SHA256 forwarding security token generation enabled");
@@ -194,6 +279,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let totem_sessions = Arc::clone(&active_sessions);
     let totem_queue_active = Arc::clone(&is_queue_active);
     let totem_queue = Arc::clone(&queue);
+    let totem_metrics = Arc::clone(&metrics);
     let totem_mode = mode;
     tokio::spawn(async move {
         while let Ok(event) = totem_event_rx.recv().await {
@@ -202,6 +288,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     consecutive_failures,
                     error,
                 } => {
+                    totem_metrics
+                        .totem_backend_online
+                        .store(false, Ordering::Relaxed);
                     tracing::warn!(
                         consecutive_failures,
                         error = %error,
@@ -233,6 +322,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     latency_ms,
                     online_players,
                 } => {
+                    totem_metrics
+                        .totem_backend_online
+                        .store(true, Ordering::Relaxed);
+                    totem_metrics
+                        .totem_latency_ms
+                        .store(latency_ms, Ordering::Relaxed);
                     info!(
                         latency_ms,
                         online_players = ?online_players,
@@ -347,6 +442,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let wave_hud = Arc::clone(&hud);
         let wave_sessions = Arc::clone(&active_sessions);
         let wave_active_flag = Arc::clone(&is_queue_active);
+        let wave_metrics = Arc::clone(&metrics);
+        let wave_turbo = turbo_client.clone();
+        let wave_turbo_pre_warm = config.turbo.pre_warm;
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_millis(wave_interval_ms));
             loop {
@@ -372,7 +470,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         is_draining: false,
                         last_update: Instant::now(),
                     };
-                    q.drain_wave(Instant::now(), &health)
+                    let d = q.drain_wave(Instant::now(), &health);
+                    wave_metrics.queue_size.store(q.len(), Ordering::Relaxed);
+                    d
                 };
 
                 if !drained.is_empty() {
@@ -382,13 +482,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                     let mut sessions = wave_sessions.lock().await;
                     for entry in drained {
-                        if let Some((tx, username, _uuid, _last_pos, bb_uuid)) =
+                        if let Some((tx, username, uuid, _last_pos, bb_uuid)) =
                             sessions.remove(&entry.session_id)
                         {
                             let (host, port) = match entry.target_server.split_once(':') {
                                 Some((h, p)) => (h, p.parse::<u16>().unwrap_or(25565)),
                                 None => (entry.target_server.as_str(), 25565),
                             };
+
+                            // Horizon Turbo Fast-Path: pre-warm arrival in backend memory
+                            if let Some(ref turbo) = wave_turbo {
+                                if wave_turbo_pre_warm {
+                                    let _ = turbo.notify_player_expect(&username, uuid, None).await;
+                                }
+                            }
 
                             // Send transfer sound and packet
                             let (sound_opt, transfer_pkt) = wave_hud.render_transfer(host, port);
@@ -411,6 +518,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 host: host.to_string(),
                                 port,
                             });
+
+                            if let Some(ref turbo) = wave_turbo {
+                                if wave_turbo_pre_warm {
+                                    let _ = turbo.notify_player_confirm(&username).await;
+                                }
+                            }
+                            wave_metrics.transfers_total.fetch_add(1, Ordering::Relaxed);
+
                             info!(
                                 player = %username,
                                 target = %entry.target_server,
@@ -459,9 +574,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(&bind_addr).await?;
     info!("Zenith server online. Ready for player connections!");
 
+    let loop_metrics = Arc::clone(&metrics);
     loop {
         let (socket, peer_addr) = listener.accept().await?;
         debug!(peer = %peer_addr, "Accepted incoming TCP connection");
+
+        let peer_ip = peer_addr.ip();
+        let _conn_guard = if shield_enabled {
+            match conn_tracker.acquire(peer_ip) {
+                Ok(guard) => {
+                    let check_res = {
+                        let mut rl = rate_limiter.lock().await;
+                        rl.check_allowed(peer_ip, Instant::now())
+                    };
+                    match check_res {
+                        Ok(()) => Some(guard),
+                        Err(e) => {
+                            loop_metrics
+                                .shield_rate_limited_total
+                                .fetch_add(1, Ordering::Relaxed);
+                            let jailed = rate_limiter.lock().await.jail_manager().count();
+                            loop_metrics
+                                .shield_jailed_ips
+                                .store(jailed, Ordering::Relaxed);
+                            debug!(peer = %peer_addr, error = %e, "Shield rejected incoming connection: rate-limited or jailed");
+                            continue;
+                        }
+                    }
+                }
+                Err(e) => {
+                    loop_metrics
+                        .shield_rate_limited_total
+                        .fetch_add(1, Ordering::Relaxed);
+                    debug!(peer = %peer_addr, error = %e, "Shield rejected incoming connection: concurrent limit reached");
+                    continue;
+                }
+            }
+        } else {
+            None
+        };
 
         let queue_clone = Arc::clone(&queue);
         let group_clone = Arc::clone(&group_manager);
@@ -469,8 +620,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let sessions_clone = Arc::clone(&active_sessions);
         let target_clone = target_server.clone();
         let event_tx_clone = event_tx.clone();
+        let task_metrics = Arc::clone(&loop_metrics);
 
         tokio::spawn(async move {
+            let _guard = _conn_guard;
+            task_metrics.active_sessions.fetch_add(1, Ordering::Relaxed);
             let _ = socket.set_nodelay(true);
             let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
             let mut session =
@@ -508,6 +662,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             enqueued_at: Instant::now(),
                             target_server: target_clone,
                         });
+                        task_metrics.queue_size.store(q.len(), Ordering::Relaxed);
                         let (p, t) = q.position_of(session_id).unwrap_or((1, 1));
                         let eta = ((p as u64).saturating_sub(1)
                             / q.config().nominal_wave_size.max(1) as u64)
@@ -551,14 +706,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     // Cleanup if disconnected before wave drain
                     queue_clone.lock().await.remove(session_id);
+                    task_metrics
+                        .queue_size
+                        .store(queue_clone.lock().await.len(), Ordering::Relaxed);
                     sessions_clone.lock().await.remove(&session_id);
                 }
                 Err(e) => {
                     debug!(error = %e, "Handshake/Login ended (client disconnect or ping)");
                 }
             }
+            task_metrics.active_sessions.fetch_sub(1, Ordering::Relaxed);
         });
     }
+
+    #[allow(unreachable_code)]
+    Ok(())
 }
 
 async fn handle_command(

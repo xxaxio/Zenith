@@ -1,5 +1,15 @@
-//! Defensive cybersecurity layer: anti-Slowloris protection, strict frame bounds, and rate-limiting.
+//! Defensive cybersecurity layer: anti-Slowloris protection, strict frame bounds,
+//! token-bucket IP/CIDR rate limiting, connection concurrency limits, and protocol challenge.
 
+pub mod challenge;
+pub mod concurrency;
+pub mod rate_limit;
+
+pub use challenge::{ChallengeStatus, ProtocolChallenge};
+pub use concurrency::{ConnectionGuard, ConnectionTracker};
+pub use rate_limit::{IpRateLimiter, JailManager, RateLimitConfig, SubnetKey, TokenBucket};
+
+use std::net::IpAddr;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -12,6 +22,16 @@ pub enum ShieldError {
     SlowlorisTimeout(Duration),
     #[error("Frame size exceeded bound: {0} bytes (max: {1})")]
     PayloadTooLarge(usize, usize),
+    #[error("Rate limit exceeded for IP {0}")]
+    RateLimitExceeded(IpAddr),
+    #[error("Subnet rate limit exceeded for CIDR {0}")]
+    SubnetRateLimitExceeded(String),
+    #[error("Too many concurrent connections from IP {0} (max: {1})")]
+    TooManyConnectionsPerIp(IpAddr, usize),
+    #[error("IP {0} is jailed for remaining {1:?}")]
+    IpJailed(IpAddr, Duration),
+    #[error("Protocol challenge timeout exceeded ({0:?})")]
+    ChallengeTimeout(Duration),
     #[error("Malformed frame or wire error: {0}")]
     Wire(#[from] WireError),
     #[error("Underlying IO error: {0}")]
@@ -149,13 +169,13 @@ mod tests {
 
         // Write from server to client
         shielded_server
-            .write_packet(0x02, b"Success")
+            .write_packet(0x01, b"Response")
             .await
             .unwrap();
 
-        let (resp_id, resp_payload) = read_raw_packet(&mut client, 1024).await.unwrap();
-        assert_eq!(resp_id, 0x02);
-        assert_eq!(&resp_payload, b"Success");
+        let (id2, payload2) = read_raw_packet(&mut client, 1024).await.unwrap();
+        assert_eq!(id2, 0x01);
+        assert_eq!(&payload2, b"Response");
     }
 
     #[tokio::test]
@@ -165,8 +185,8 @@ mod tests {
             handshake_timeout: Duration::from_millis(50),
             ..Default::default()
         };
-
         let mut shielded_server = ShieldedStream::new(server, limits);
+
         let res = shielded_server.read_packet(false).await;
         assert!(matches!(res, Err(ShieldError::SlowlorisTimeout(_))));
     }

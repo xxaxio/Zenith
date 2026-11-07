@@ -12,14 +12,14 @@ Zenith is a standalone limbo and queue server built in Rust for [Horizon](https:
 |---|---|---|
 | **Zero-Chunk Dimension** | Done (Phase 2) | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
 | **Lightweight Async Actors** | Done (Phase 2) | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
-| **Defensive Cybersecurity** | Done (Phase 2) | Anti-Slowloris socket timers, strict frame size limits, rate limiting (`zenith-shield`) |
+| **Defensive Cybersecurity** | Done (Phase 5) | Anti-Slowloris timers, token bucket rate limiter, CIDR subnet jail, connection caps (`zenith-shield`) |
 | **Priority Queue Scheduler** | Done (Phase 3) | Health-adaptive wave queue, VIP priority & ping sorting (`zenith-transit`) |
 | **Dynamic HUD Display** | Done (Phase 3) | Protocol 777 BossBar, SmallCaps Actionbar, sound cues & instant transfer (`zenith-display`) |
-| **Totem Crash Recovery** | Planned (Phase 4) | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
-| **HMAC Forwarding Support** | Planned (Phase 4) | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
-| **Universal Seamless Transfer** | Planned (Phase 4) | Client-side transfer packet dispatch (`0x7C`) without disconnect or loading screens (`zenith-transit`) |
-| **Horizon Turbo Fast-Path** | Planned (Phase 5) | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) |
-| **Prometheus Telemetry** | Planned (Phase 5) | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
+| **Totem Crash Recovery** | Done (Phase 4) | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
+| **HMAC Forwarding Support** | Done (Phase 4) | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
+| **Universal Seamless Transfer** | Done (Phase 4) | Client-side transfer packet dispatch (`0x7C`) without disconnect or loading screens (`zenith-transit`) |
+| **Horizon Turbo Fast-Path** | Done (Phase 5) | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) (`zenith-totem`) |
+| **Prometheus Telemetry** | Done (Phase 5) | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
 | **Synthetic Testkit & Mocks** | Planned (Phase 6) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
 | **Benchmark Harness** | Planned (Phase 6) | Multi-scenario load testing, bot simulations, and memory profiling tool (`zenith-bench`) |
 

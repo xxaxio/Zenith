@@ -1,54 +1,100 @@
-# Zenith Configuration Example
-# Copy this file to zenith.toml and customize for your deployment.
+# ==============================================================================
+# Zenith Server Configuration (`zenith.toml`)
+# High-density virtual dimension, queue gatekeeper, and cyber-defense daemon.
+# ==============================================================================
 
-[network]
-# Address and port on which Zenith listens for proxy or direct connections
-bind_address = "0.0.0.0:25565"
-# Compression threshold in bytes (-1 to disable, 256 is standard)
-compression_threshold = 256
-# Maximum active connections held simultaneously
-max_connections = 10000
+[server]
+# Port and address Zenith listens on for incoming Minecraft player connections.
+bind = "0.0.0.0:25565"
 
-[session]
-# Virtual dimension visual theme ("void", "starfield", "end")
-theme = "void"
-# Default spawn coordinates in the virtual dimension
-spawn_x = 0.0
-spawn_y = 64.0
-spawn_z = 0.0
-# Player abilities while in holding state
-allow_flight = true
-invulnerable = true
+# Target backend server players are transferred to (Horizon, Paper, Velocity, etc.).
+target = "127.0.0.1:25566"
 
-[transit]
-# Target backend game server for successful dequeues
-target_backend = "127.0.0.1:25566"
-# Rate limit for draining the queue (players transferred per second)
-drain_rate_per_sec = 5
-# Queue timeout in seconds before notifying the client
-queue_timeout_sec = 600
+# Server mode:
+# - "limbo": Virtual holding showcase. Players stay in limbo; /transfer to transfer.
+# - "queue": Automatic transit queue draining players into backend in timed waves.
+# - "stress": High-throughput holding dimension for bot testing and load evaluation.
+mode = "limbo"
 
-[display]
-# Dynamic BossBar title template (supports {pos}, {total}, {eta})
-bossbar_title = "Queue: #{pos} / {total} (Est. wait: {eta}s)"
-# BossBar color ("pink", "blue", "red", "green", "yellow", "purple", "white")
-bossbar_color = "purple"
-# BossBar division overlay ("progress", "notched_6", "notched_10", "notched_12", "notched_20")
-bossbar_style = "progress"
-# Actionbar text format
-actionbar_format = "You are in queue. Please hold your connection."
+[queue]
+# Number of players to transfer in each batch wave.
+wave_size = 5
 
-[shield]
-# Maximum allowed payload size in bytes during pre-play phases (anti-buffer overflow)
-max_payload_bytes = 32768
-# Idle socket read timeout in seconds (anti-Slowloris protection)
-socket_read_timeout_sec = 15
-# Maximum connection attempts per IP per minute
-rate_limit_per_minute = 60
+# Interval in milliseconds between consecutive transfer waves.
+wave_interval_ms = 4000
+
+# Sorting policy within the same priority tier: "ping" (latency ascending) or "fifo".
+sorting = "ping"
+
+# Path to the LuckPerms-style groups file defining player tiers and weights.
+groups_file = "groups.toml"
 
 [totem]
-# Interval in seconds between health pings to crashed/restarting backends
-health_check_interval_sec = 2
-# Notification title sent to evacuated players
-maintenance_title = "Server Restarting"
-maintenance_subtitle = "Reconnecting automatically when ready..."
+# Enable active SLP health probing and anti-crash evacuation lifeline.
+enabled = true
+
+# Milliseconds between background health probes to backend server.
+probe_interval_ms = 1000
+
+# Milliseconds timeout before an SLP probe is counted as failed.
+probe_timeout_ms = 600
+
+# Consecutive failed probes required before declaring backend down.
+consecutive_failures = 2
+
+# Consecutive successful probes required before declaring backend recovered.
+consecutive_successes = 2
+
+[turbo]
+# Enable Horizon Native Turbo Fast-Path (full-Rust IPC control socket).
+enabled = false
+
+# Path or address of Horizon dedicated server control endpoint (e.g. ctl.sock or 127.0.0.1:40000).
+# endpoint = "/run/horizon/ctl.sock"
+# endpoint = "127.0.0.1:40000"
+
+# Pre-warm arrival hand-overs via Horizon's #7484 protocol (player-expect / player-confirm).
+pre_warm = true
+
+[shield]
+# Enable defensive cybersecurity layer (Slowloris timeouts, bounds, rate limits).
+enabled = true
+
+# Maximum simultaneous active TCP connections allowed from a single IP address.
+max_connections_per_ip = 3
+
+# Token-bucket rate limit: maximum allowed handshakes per second per IP.
+ip_rate_limit = 2.0
+
+# Burst capacity allowed before rate-limiting an IP.
+ip_burst_capacity = 5.0
+
+# Token-bucket rate limit per CIDR /24 (IPv4) or /64 (IPv6) subnet.
+subnet_rate_limit = 10.0
+
+# Burst capacity allowed per subnet.
+subnet_burst_capacity = 25.0
+
+# Number of rate-limit violations before automatically jailing the IP.
+violation_threshold = 5
+
+# Temporary jail / blacklist ban duration in seconds (900s = 15 minutes).
+jail_duration_secs = 900
+
+# Enable zero-UI protocol challenge verifying genuine client before queue entry.
+enable_challenge = true
+
+# Timeout in milliseconds to answer the protocol challenge before bot ejection.
+challenge_timeout_ms = 3000
+
+[forwarding]
+# Optional HMAC-SHA256 secret key for signing transfer tokens into backend proxies.
+# If left empty, token signing is disabled.
+# hmac_secret = "your-cryptographic-shared-secret-key"
+
+[metrics]
+# Enable native Prometheus metrics HTTP exporter.
+enabled = true
+
+# Bind address and port for the Prometheus scrape endpoint (GET /metrics).
+bind = "0.0.0.0:25580"
