@@ -4,5 +4,7 @@
 .vscode/
 *.swp
 zenith.toml
+zenith_*.toml
+test_pack*
 ctl.sock
 .scratch*
