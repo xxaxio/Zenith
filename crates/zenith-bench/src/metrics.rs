@@ -159,11 +159,11 @@ pub async fn fetch_zenith_prometheus_metrics(metrics_url: &str) -> Option<Promet
 }
 
 /// Fallback sampler to measure target process RSS memory across operating systems.
-pub fn get_target_process_memory_rss(proc_name: &str) -> u64 {
+pub fn get_target_process_memory_rss(_proc_name: &str) -> u64 {
     #[cfg(windows)]
     {
         let cmd = format!(
-            "(Get-Process {proc_name} -ErrorAction SilentlyContinue | Select-Object -First 1).WorkingSet64"
+            "(Get-Process {_proc_name} -ErrorAction SilentlyContinue | Select-Object -First 1).WorkingSet64"
         );
         if let Ok(output) = std::process::Command::new("powershell")
             .args(["-NoProfile", "-Command", &cmd])
