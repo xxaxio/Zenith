@@ -314,6 +314,62 @@ pub fn build_commands_payload() -> Vec<u8> {
         });
     }
 
+    // /broadcast <message> and /bc <message>
+    for bc_alias in ["broadcast", "bc"] {
+        let bc_idx = nodes.len() as i32;
+        let msg_arg_idx = bc_idx + 1;
+        nodes.push(CommandNode {
+            kind: 1,
+            executable: false,
+            restricted: false,
+            children: vec![msg_arg_idx],
+            redirect: None,
+            name: bc_alias.to_string(),
+            parser: None,
+            suggestions: None,
+        });
+        nodes[0].children.push(bc_idx);
+
+        nodes.push(CommandNode {
+            kind: 2,
+            executable: true,
+            restricted: false,
+            children: Vec::new(),
+            redirect: None,
+            name: "message".to_string(),
+            parser: Some((5, vec![2])), // 2 = greedy phrase
+            suggestions: None,
+        });
+    }
+
+    // /alert <message>
+    {
+        let alert_idx = nodes.len() as i32;
+        let msg_arg_idx = alert_idx + 1;
+        nodes.push(CommandNode {
+            kind: 1,
+            executable: false,
+            restricted: false,
+            children: vec![msg_arg_idx],
+            redirect: None,
+            name: "alert".to_string(),
+            parser: None,
+            suggestions: None,
+        });
+        nodes[0].children.push(alert_idx);
+
+        nodes.push(CommandNode {
+            kind: 2,
+            executable: true,
+            restricted: false,
+            children: Vec::new(),
+            redirect: None,
+            name: "message".to_string(),
+            parser: Some((5, vec![2])), // 2 = greedy phrase
+            suggestions: None,
+        });
+    }
+
     let commands = Commands { nodes, root: 0 };
     let mut writer = Writer::new();
     Commands::write(&commands, &mut writer);

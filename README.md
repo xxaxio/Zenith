@@ -22,6 +22,9 @@ Zenith is a standalone limbo and queue server built in Rust for [Horizon](https:
 | **Prometheus Telemetry** | Done (Phase 5) | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
 | **Synthetic Testkit & Mocks** | Done (Phase 6) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
 | **Benchmark Harness** | Done (Phase 6) | Multi-scenario load testing, bot simulations, and memory profiling tool (`zenith-bench`) |
+| **PROXY Protocol v2 Ingress** | Done (Phase 7) | Binary v2 header parser & trusted proxy CIDR filtering for real client IP extraction (`zenith-wire`, `zenith-app`) |
+| **Limbo Resource Preloading** | Done (Phase 7) | Background texture pack pushing & client response tracking while in queue (`zenith-wire`, `zenith-session`) |
+| **Broadcast & Alert Engine** | Done (Phase 7) | Chat-wide `/broadcast` announcements, screen Title `/alert` flashes, and automated Totem alerts (`zenith-session`, `zenith-app`) |
 
 *Status definitions: `Done` (merged & verified in CI), `In progress` (under active implementation), `Planned` (scheduled in project phases).*
 

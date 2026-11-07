@@ -103,3 +103,42 @@ enabled = true
 # Bind address and port for the Prometheus scrape endpoint (GET /metrics).
 # Default to loopback (127.0.0.1) for secure internal scraping. Use 0.0.0.0 only behind a firewall.
 bind = "127.0.0.1:25580"
+
+[proxy]
+# Enable HAProxy PROXY Protocol v2 ingress parsing.
+# Extracts real client IP addresses when deployed behind Cloudflare Spectrum,
+# HAProxy, AWS NLB, or OVH Anti-DDoS proxies.
+enabled = false
+
+# List of trusted reverse proxy IPs or CIDR blocks.
+# Non-proxy traffic from untrusted sources is rejected or treated as direct.
+trusted_proxies = [
+    "127.0.0.1",
+    "::1",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16"
+]
+
+[resource_pack]
+# Background server resource pack preloading in Limbo.
+# Pushes texture packs (packet ID 82) to players while waiting in queue,
+# eliminating freeze and loading stalls upon backend transfer.
+enabled = false
+
+# Download URL pointing to the .zip resource pack.
+# url = "https://example.com/assets/server-pack.zip"
+
+# SHA-1 hash (40-char hex) of the resource pack for client-side caching.
+# hash = "0123456789abcdef0123456789abcdef01234567"
+
+# Whether the pack is mandatory for gameplay.
+required = false
+
+# Optional localized prompt shown on vanilla client prompt dialog.
+# prompt = "Pre-caching server textures while in queue..."
+
+[broadcast]
+# Automated lifecycle alert broadcasts when Totem health probing detects state changes.
+notify_on_backend_down = true
+notify_on_backend_up = true

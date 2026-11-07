@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error, info};
@@ -26,7 +27,7 @@ use zenith_totem::{
 use zenith_transit::{
     GroupManager, QueueEntry, SortingPolicy, TargetServerHealth, TransitConfig, TransitQueue,
 };
-use zenith_wire::HmacForwarding;
+use zenith_wire::{HmacForwarding, PROXY_V2_MAGIC, ProxyHeader, is_trusted_proxy};
 
 /// Zenith operational modes for testing and production deployment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,6 +64,7 @@ struct CommandContext {
     hud: Arc<HudRenderer>,
     health_rx: tokio::sync::watch::Receiver<BackendHealth>,
     hmac_forwarding: Option<HmacForwarding>,
+    rp_enabled: bool,
 }
 
 #[tokio::main]
@@ -289,6 +291,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let totem_queue = Arc::clone(&queue);
     let totem_metrics = Arc::clone(&metrics);
     let totem_mode = mode;
+    let notify_down = config.broadcast.notify_on_backend_down;
+    let notify_up = config.broadcast.notify_on_backend_up;
     tokio::spawn(async move {
         while let Ok(event) = totem_event_rx.recv().await {
             match event {
@@ -309,21 +313,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         totem_queue.lock().await.set_paused(true);
                     }
 
-                    let sessions = totem_sessions.lock().await;
-                    let times = encode_title_times_packet(5, 50, 15);
-                    let sub =
-                        encode_subtitle_packet("§c§lBACKEND RESTARTING §7Recovery in progress...");
-                    let title = encode_title_packet("§c⚠");
-                    let chat = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
-                        false,
-                    );
+                    if notify_down {
+                        let sessions = totem_sessions.lock().await;
+                        let times = encode_title_times_packet(5, 50, 15);
+                        let sub = encode_subtitle_packet(
+                            "§c§lBACKEND RESTARTING §7Recovery in progress...",
+                        );
+                        let title = encode_title_packet("§c⚠");
+                        let chat = encode_system_chat_packet(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
+                            false,
+                        );
 
-                    for (s_tx, _, _, _, _) in sessions.values() {
-                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                        for (s_tx, _, _, _, _) in sessions.values() {
+                            let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
+                            let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
+                            let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
+                            let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                        }
                     }
                 }
                 TotemEvent::BackendRecovered {
@@ -346,25 +353,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         totem_queue.lock().await.set_paused(false);
                     }
 
-                    let sessions = totem_sessions.lock().await;
-                    let times = encode_title_times_packet(5, 50, 15);
-                    let sub = encode_subtitle_packet(
-                        "§a§lBACKEND READY §7Resuming automatic transfers...",
-                    );
-                    let title = encode_title_packet("§a▶");
-                    let chat = encode_system_chat_packet(
-                        &format!(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §a§lBACKEND ONLINE! §7Ping: §e{}ms§7. Preparing transfers...",
-                            latency_ms
-                        ),
-                        false,
-                    );
+                    if notify_up {
+                        let sessions = totem_sessions.lock().await;
+                        let times = encode_title_times_packet(5, 50, 15);
+                        let sub = encode_subtitle_packet(
+                            "§a§lBACKEND READY §7Resuming automatic transfers...",
+                        );
+                        let title = encode_title_packet("§a▶");
+                        let chat = encode_system_chat_packet(
+                            &format!(
+                                "§b§lᴢᴇɴɪᴛʜ §8» §a§lBACKEND ONLINE! §7Ping: §e{}ms§7. Preparing transfers...",
+                                latency_ms
+                            ),
+                            false,
+                        );
 
-                    for (s_tx, _, _, _, _) in sessions.values() {
-                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                        for (s_tx, _, _, _, _) in sessions.values() {
+                            let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
+                            let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
+                            let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
+                            let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                        }
                     }
                 }
                 TotemEvent::StatusUpdate { .. } => {}
@@ -563,6 +572,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         hud: Arc::clone(&hud),
         health_rx: cmd_health_rx,
         hmac_forwarding,
+        rp_enabled: config.resource_pack.enabled,
     });
 
     let loop_ctx = Arc::clone(&cmd_context);
@@ -583,6 +593,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } => {
                     loop_ctx.queue.lock().await.update_ping(session_id, ping_ms);
                 }
+                SessionEvent::ResourcePackStatus {
+                    session_id,
+                    uuid,
+                    action,
+                } => {
+                    debug!(session = ?session_id, uuid = ?uuid, ?action, "Client resource pack status received");
+                }
                 SessionEvent::Disconnected { session_id } => {
                     loop_ctx.queue.lock().await.remove(session_id);
                     loop_ctx.sessions.lock().await.remove(&session_id);
@@ -596,17 +613,70 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Zenith server online. Ready for player connections!");
 
     let loop_metrics = Arc::clone(&metrics);
+    let proxy_enabled = config.proxy.enabled;
+    let trusted_proxies = config.proxy.trusted_proxies.clone();
+    let rp_config = config.resource_pack.clone();
+
     loop {
-        let (socket, peer_addr) = listener.accept().await?;
+        let (mut socket, peer_addr) = listener.accept().await?;
         debug!(peer = %peer_addr, "Accepted incoming TCP connection");
 
-        let peer_ip = peer_addr.ip();
+        // PROXY Protocol v2 Ingress: parse header if enabled and peer is a trusted proxy
+        let mut client_ip = peer_addr.ip();
+        if proxy_enabled && is_trusted_proxy(peer_addr.ip(), &trusted_proxies) {
+            let proxy_res = async {
+                let mut peek_buf = [0u8; 512];
+                let mut read_bytes = 0;
+                for _ in 0..10 {
+                    let n = socket.peek(&mut peek_buf).await?;
+                    if n > read_bytes {
+                        read_bytes = n;
+                    }
+                    if read_bytes < 12 {
+                        tokio::time::sleep(Duration::from_millis(5)).await;
+                        continue;
+                    }
+                    if peek_buf[..12] != PROXY_V2_MAGIC {
+                        return Ok::<_, std::io::Error>(None);
+                    }
+                    if read_bytes < 16 {
+                        tokio::time::sleep(Duration::from_millis(5)).await;
+                        continue;
+                    }
+                    let total_len = 16 + u16::from_be_bytes([peek_buf[14], peek_buf[15]]) as usize;
+                    if total_len > peek_buf.len() {
+                        return Ok(None);
+                    }
+                    if read_bytes < total_len {
+                        tokio::time::sleep(Duration::from_millis(5)).await;
+                        continue;
+                    }
+                    if let Ok(Some((header, _))) = ProxyHeader::parse(&peek_buf[..total_len]) {
+                        let mut discard = vec![0u8; total_len];
+                        socket.read_exact(&mut discard).await?;
+                        if let Some(src) = header.src_addr {
+                            return Ok(Some(src.ip()));
+                        }
+                    }
+                    return Ok(None);
+                }
+                Ok(None)
+            };
+
+            if let Ok(Ok(Some(extracted_ip))) =
+                tokio::time::timeout(Duration::from_millis(500), proxy_res).await
+            {
+                debug!(peer = %peer_addr, real_ip = %extracted_ip, "Extracted real client IP via PROXY v2");
+                client_ip = extracted_ip;
+            }
+        }
+
         let _conn_guard = if shield_enabled {
-            match conn_tracker.acquire(peer_ip) {
+            match conn_tracker.acquire(client_ip) {
                 Ok(guard_opt) => {
                     let check_res = {
                         let mut rl = rate_limiter.lock().await;
-                        rl.check_allowed(peer_ip, Instant::now())
+                        rl.check_allowed(client_ip, Instant::now())
                     };
                     match check_res {
                         Ok(()) => guard_opt,
@@ -618,7 +688,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             loop_metrics
                                 .shield_jailed_ips
                                 .store(jailed, Ordering::Relaxed);
-                            debug!(peer = %peer_addr, error = %e, "Shield rejected incoming connection: rate-limited or jailed");
+                            debug!(peer = %peer_addr, client_ip = %client_ip, error = %e, "Shield rejected incoming connection: rate-limited or jailed");
                             continue;
                         }
                     }
@@ -627,7 +697,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     loop_metrics
                         .shield_rate_limited_total
                         .fetch_add(1, Ordering::Relaxed);
-                    debug!(peer = %peer_addr, error = %e, "Shield rejected incoming connection: concurrent limit reached");
+                    debug!(peer = %peer_addr, client_ip = %client_ip, error = %e, "Shield rejected incoming connection: concurrent limit reached");
                     continue;
                 }
             }
@@ -642,6 +712,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let target_clone = target_server.clone();
         let event_tx_clone = event_tx.clone();
         let task_metrics = Arc::clone(&loop_metrics);
+        let task_rp_config = rp_config.clone();
 
         tokio::spawn(async move {
             let _guard = _conn_guard;
@@ -669,6 +740,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         player = %username,
                         priority = ?priority,
                         peer = %peer_addr,
+                        real_ip = %client_ip,
                         "Player entered Zenith virtual holding dimension"
                     );
 
@@ -711,6 +783,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = cmd_tx.send(SessionCommand::SendRaw(sub));
                     let title = encode_title_packet("§b§lᴢᴇɴɪᴛʜ");
                     let _ = cmd_tx.send(SessionCommand::SendRaw(title));
+
+                    // Preload resource pack in background if configured
+                    if task_rp_config.enabled && !task_rp_config.url.is_empty() {
+                        let mut uuid_bytes = [0u8; 16];
+                        let hash_bytes = task_rp_config.hash.as_bytes();
+                        for (idx, &b) in hash_bytes.iter().enumerate() {
+                            uuid_bytes[idx % 16] ^= b;
+                        }
+                        let pack_uuid = u128::from_be_bytes(uuid_bytes);
+
+                        let _ = cmd_tx.send(SessionCommand::PushResourcePack {
+                            uuid: pack_uuid,
+                            url: task_rp_config.url.clone(),
+                            hash: task_rp_config.hash.clone(),
+                            required: task_rp_config.required,
+                            prompt: task_rp_config.prompt.clone(),
+                        });
+                        debug!(session = ?session_id, player = %username, "Pushed background resource pack preload");
+                    }
 
                     // Register in active sessions map
                     sessions_clone
@@ -1387,6 +1478,17 @@ async fn handle_command(
             let m5 =
                 encode_system_chat_packet(&format!("§7  Latency / Info: {}", ping_text), false);
             let m6 = encode_system_chat_packet(
+                &format!(
+                    "§7  Resource Pack Preload: {}",
+                    if ctx.rp_enabled {
+                        "§aActive"
+                    } else {
+                        "§7Disabled"
+                    }
+                ),
+                false,
+            );
+            let m7 = encode_system_chat_packet(
                 "§8§m                                                  §r",
                 false,
             );
@@ -1397,6 +1499,73 @@ async fn handle_command(
             let _ = tx.send(SessionCommand::SendRaw(m4));
             let _ = tx.send(SessionCommand::SendRaw(m5));
             let _ = tx.send(SessionCommand::SendRaw(m6));
+            let _ = tx.send(SessionCommand::SendRaw(m7));
+        }
+        "broadcast" | "bc" => {
+            if !is_staff {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to broadcast.",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
+            if args.is_empty() {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /broadcast <message>",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
+            let broadcast_text = args.join(" ");
+            let chat = encode_system_chat_packet(
+                &format!("§b§lᴢᴇɴɪᴛʜ §8» §d§l[BROADCAST] §r§f{}", broadcast_text),
+                false,
+            );
+
+            let sess = ctx.sessions.lock().await;
+            for (s_tx, _, _, _, _) in sess.values() {
+                let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+            }
+            info!(by = %username, message = %broadcast_text, "Staff broadcast sent to all players");
+        }
+        "alert" => {
+            if !is_staff {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to send alerts.",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
+            if args.is_empty() {
+                let msg =
+                    encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /alert <message>", false);
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
+            let alert_text = args.join(" ");
+            let times = encode_title_times_packet(10, 60, 20);
+            let title = encode_title_packet("§c§lALERT");
+            let sub = encode_subtitle_packet(&format!("§e{}", alert_text));
+            let chat = encode_system_chat_packet(
+                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c§l[ALERT] §e{}", alert_text),
+                false,
+            );
+
+            let sess = ctx.sessions.lock().await;
+            for (s_tx, _, _, _, _) in sess.values() {
+                let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
+                let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
+                let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
+                let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+            }
+            info!(by = %username, alert = %alert_text, "Staff alert sent to all players");
         }
         "ping" => {
             let ping = ctx.queue.lock().await.ping_of(session_id).unwrap_or(0);
@@ -1453,6 +1622,14 @@ async fn handle_command(
                     "  §c/queueskip <p> §8- §7Force-transfer a specific player",
                     false,
                 );
+                let m_bc = encode_system_chat_packet(
+                    "  §c/broadcast <m> §8- §7Send a chat announcement to all players",
+                    false,
+                );
+                let m_al = encode_system_chat_packet(
+                    "  §c/alert <m>     §8- §7Flash a screen Title + Subtitle alert",
+                    false,
+                );
                 let m_grp = encode_system_chat_packet(
                     "  §c/group ...     §8- §7Manage priority groups and staff permissions",
                     false,
@@ -1462,6 +1639,8 @@ async fn handle_command(
                 let _ = tx.send(SessionCommand::SendRaw(m_stat));
                 let _ = tx.send(SessionCommand::SendRaw(m_staff));
                 let _ = tx.send(SessionCommand::SendRaw(m_skip));
+                let _ = tx.send(SessionCommand::SendRaw(m_bc));
+                let _ = tx.send(SessionCommand::SendRaw(m_al));
                 let _ = tx.send(SessionCommand::SendRaw(m_grp));
             }
 

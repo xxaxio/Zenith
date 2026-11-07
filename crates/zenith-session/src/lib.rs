@@ -59,6 +59,20 @@ pub enum SessionCommand {
     SendRaw(Vec<u8>),
     /// Dispatches the Protocol 777 Transfer packet (ID 132 in Play state) and closes the session.
     Transfer { host: String, port: u16 },
+    /// Dispatches a resource pack preloading push (Packet ID 82 in Play state).
+    PushResourcePack {
+        uuid: u128,
+        url: String,
+        hash: String,
+        required: bool,
+        prompt: Option<String>,
+    },
+    /// Dispatches a broadcast alert across the screen (Title + Subtitle) and system chat.
+    BroadcastAlert {
+        title: String,
+        subtitle: Option<String>,
+        chat: String,
+    },
     /// Terminates the session cleanly.
     Close,
 }
@@ -75,6 +89,12 @@ pub enum SessionEvent {
     },
     /// Measured round-trip ping updated via KeepAlive.
     PingUpdated { session_id: SessionId, ping_ms: u32 },
+    /// Resource pack status update from client (Packet ID 44 in Play state).
+    ResourcePackStatus {
+        session_id: SessionId,
+        uuid: u128,
+        action: zenith_wire::ResourcePackAction,
+    },
     /// Session ended / disconnected.
     Disconnected { session_id: SessionId },
 }
@@ -415,6 +435,41 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                             }
                             return Ok(());
                         }
+                        Some(SessionCommand::PushResourcePack { uuid, url, hash, required, prompt }) => {
+                            let push = zenith_wire::ResourcePackPush {
+                                uuid,
+                                url,
+                                hash,
+                                required,
+                                prompt,
+                            };
+                            self.shield.write_packet(82, &push.encode()).await?; // 82 = ResourcePackPush in 26.3 Play state
+                        }
+                        Some(SessionCommand::BroadcastAlert { title, subtitle, chat }) => {
+                            // 1. Title animation times (Packet ID 117): 10 ticks fade in, 70 ticks stay, 20 ticks fade out
+                            let mut times_payload = BytesMut::with_capacity(12);
+                            times_payload.put_i32(10);
+                            times_payload.put_i32(70);
+                            times_payload.put_i32(20);
+                            self.shield.write_packet(117, &times_payload).await?;
+
+                            // 2. Title (Packet ID 116)
+                            let mut title_payload = BytesMut::with_capacity(title.len() + 8);
+                            zenith_wire::write_nbt_string(&title, &mut title_payload);
+                            self.shield.write_packet(116, &title_payload).await?;
+
+                            // 3. Optional subtitle (Packet ID 114)
+                            if let Some(sub) = subtitle {
+                                let mut sub_payload = BytesMut::with_capacity(sub.len() + 8);
+                                zenith_wire::write_nbt_string(&sub, &mut sub_payload);
+                                self.shield.write_packet(114, &sub_payload).await?;
+                            }
+
+                            // 4. System chat message (Packet ID 124)
+                            if !chat.is_empty() {
+                                let _ = self.send_system_chat(&chat).await;
+                            }
+                        }
                         Some(SessionCommand::Close) | None => {
                             if let Some(ref tx) = self.event_tx {
                                 let _ = tx.send(SessionEvent::Disconnected { session_id: self.id });
@@ -445,6 +500,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                                 });
                                             }
                                         }
+                                    }
+                                }
+                            } else if id == 44 { // ResourcePackResponse in Play state
+                                if let Ok(resp) = zenith_wire::ResourcePackResponse::decode(&payload) {
+                                    debug!(session = ?self.id, ?resp.action, "Received resource pack response");
+                                    if let Some(ref tx) = self.event_tx {
+                                        let _ = tx.send(SessionEvent::ResourcePackStatus {
+                                            session_id: self.id,
+                                            uuid: resp.uuid,
+                                            action: resp.action,
+                                        });
                                     }
                                 }
                             } else if id == 7 || id == 8 || id == 9 {
