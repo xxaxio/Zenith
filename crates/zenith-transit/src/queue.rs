@@ -54,6 +54,19 @@ impl TransitQueue {
         }
     }
 
+    /// Updates the measured ping latency of an active entry in the queue.
+    pub fn update_ping(&mut self, session_id: SessionId, ping_ms: u32) {
+        if let Some(entry) = self.entries.get_mut(&session_id) {
+            entry.ping_ms = ping_ms;
+        }
+    }
+
+    /// Returns the measured ping latency for a session, if queued.
+    #[must_use]
+    pub fn ping_of(&self, session_id: SessionId) -> Option<u32> {
+        self.entries.get(&session_id).map(|e| e.ping_ms)
+    }
+
     /// Finds a session ID by player username (case-insensitive).
     #[must_use]
     pub fn session_id_of(&self, username: &str) -> Option<SessionId> {

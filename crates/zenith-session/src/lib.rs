@@ -73,6 +73,8 @@ pub enum SessionEvent {
         command: String,
         args: Vec<String>,
     },
+    /// Measured round-trip ping updated via KeepAlive.
+    PingUpdated { session_id: SessionId, ping_ms: u32 },
     /// Session ended / disconnected.
     Disconnected { session_id: SessionId },
 }
@@ -372,13 +374,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         let user = self.username.clone().unwrap_or_else(|| "Player".into());
         let _ = self
             .send_system_chat(&format!(
-                "§b§lᴢᴇɴɪᴛʜ §8» §7Welcome §f{}§7. Type §b/transfer §7to connect.",
+                "§b§lᴢᴇɴɪᴛʜ §8» §7Welcome §f{}§7. Please hold while waiting in queue.",
                 user
             ))
             .await;
 
         // 4. Heartbeat loop: maintain session with periodic KeepAlive and handle commands
-        let mut keepalive_timer = tokio::time::interval(Duration::from_secs(10));
+        let mut keepalive_timer = tokio::time::interval(Duration::from_secs(5));
         let mut keepalive_counter: i64 = 1000;
 
         loop {
@@ -425,7 +427,14 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                 if let Ok(resp) = KeepAlive::decode(&payload) {
                                     if resp.id == keepalive_counter {
                                         if let Some(sent) = self.last_ping {
-                                            self.ping_ms = sent.elapsed().as_millis() as u32;
+                                            let measured = sent.elapsed().as_millis() as u32;
+                                            self.ping_ms = measured;
+                                            if let Some(ref tx) = self.event_tx {
+                                                let _ = tx.send(SessionEvent::PingUpdated {
+                                                    session_id: self.id,
+                                                    ping_ms: measured,
+                                                });
+                                            }
                                         }
                                     }
                                 }
@@ -451,21 +460,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                     let cmd = parts.first().copied().unwrap_or("").to_lowercase();
                                     let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
 
-                                    if cmd == "spawn" || cmd == "tp" {
-                                        let mut pos_payload = BytesMut::new();
-                                        write_varint(999, &mut pos_payload); // Teleport ID
-                                        pos_payload.put_f64(0.0); // X
-                                        pos_payload.put_f64(64.0); // Y
-                                        pos_payload.put_f64(0.0); // Z
-                                        pos_payload.put_f64(0.0); // Delta X
-                                        pos_payload.put_f64(0.0); // Delta Y
-                                        pos_payload.put_f64(0.0); // Delta Z
-                                        pos_payload.put_f32(0.0); // Yaw
-                                        pos_payload.put_f32(0.0); // Pitch
-                                        pos_payload.put_i32(0); // Relatives
-                                        self.shield.write_packet(73, &pos_payload).await?;
-                                        let _ = self.send_system_chat("§b§lᴢᴇɴɪᴛʜ §8» §7Téléporté au spawn (0.0, 64.0, 0.0).").await;
-                                    } else if let Some(ref tx) = self.event_tx {
+                                    if let Some(ref tx) = self.event_tx {
                                         let user = self.username.clone().unwrap_or_else(|| "Player".to_string());
                                         let _ = tx.send(SessionEvent::Command {
                                             session_id: self.id,

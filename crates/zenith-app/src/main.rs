@@ -394,9 +394,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let limbo_actionbar = if mode == ZenithMode::Limbo {
                 Some(if !hud_health_rx.borrow().is_available() {
-                    zenith_display::encode_actionbar_packet(
-                        "§c§l● §7Target backend offline §8| §b§lᴢᴇɴɪᴛʜ §7Virtual Holding",
-                    )
+                    zenith_display::encode_actionbar_packet("§c§l● §7Target backend offline")
                 } else {
                     hud_renderer.render_limbo_actionbar()
                 })
@@ -569,6 +567,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     args,
                 } => {
                     handle_command(session_id, &username, &command, &args, &loop_ctx).await;
+                }
+                SessionEvent::PingUpdated {
+                    session_id,
+                    ping_ms,
+                } => {
+                    loop_ctx.queue.lock().await.update_ping(session_id, ping_ms);
                 }
                 SessionEvent::Disconnected { session_id } => {
                     loop_ctx.queue.lock().await.remove(session_id);
@@ -751,10 +755,19 @@ async fn handle_command(
 
     match cmd {
         "transfer" | "join" | "play" => {
+            if !is_staff {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to manually transfer. Please wait in queue.",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
             let current_health = ctx.health_rx.borrow().clone();
             if !current_health.is_available() {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cLe serveur cible est temporairement indisponible (en cours de redémarrage). Vous êtes en sécurité dans le sas !",
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cTarget server is currently unavailable (restarting). You are protected in queue!",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1227,11 +1240,61 @@ async fn handle_command(
                     }
                 }
                 _ => {
-                    let msg = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group <list|info|create|delete|setweight|setstaff|add|remove>",
+                    let m1 = encode_system_chat_packet(
+                        "§8§m                                                  §r",
                         false,
                     );
-                    let _ = tx.send(SessionCommand::SendRaw(msg));
+                    let m2 = encode_system_chat_packet(
+                        "§b§l  ᴢᴇɴɪᴛʜ §8» §fGroup & Tier Administration",
+                        false,
+                    );
+                    let m3 = encode_system_chat_packet(
+                        "  §e/group list §8- §7List all groups and priorities",
+                        false,
+                    );
+                    let m4 = encode_system_chat_packet(
+                        "  §e/group info <group> §8- §7View group details & members",
+                        false,
+                    );
+                    let m5 = encode_system_chat_packet(
+                        "  §e/group add <group> <player> §8- §7Assign player to priority group",
+                        false,
+                    );
+                    let m6 = encode_system_chat_packet(
+                        "  §e/group remove <group> <player> §8- §7Remove player from group",
+                        false,
+                    );
+                    let m7 = encode_system_chat_packet(
+                        "  §e/group setweight <group> <weight> §8- §7Change priority weight",
+                        false,
+                    );
+                    let m8 = encode_system_chat_packet(
+                        "  §e/group setstaff <group> <true|false> §8- §7Toggle staff permissions",
+                        false,
+                    );
+                    let m9 = encode_system_chat_packet(
+                        "  §e/group create <name> <weight> §8- §7Create a new group",
+                        false,
+                    );
+                    let m10 = encode_system_chat_packet(
+                        "  §e/group delete <name> §8- §7Delete an existing group",
+                        false,
+                    );
+                    let m11 = encode_system_chat_packet(
+                        "§8§m                                                  §r",
+                        false,
+                    );
+                    let _ = tx.send(SessionCommand::SendRaw(m1));
+                    let _ = tx.send(SessionCommand::SendRaw(m2));
+                    let _ = tx.send(SessionCommand::SendRaw(m3));
+                    let _ = tx.send(SessionCommand::SendRaw(m4));
+                    let _ = tx.send(SessionCommand::SendRaw(m5));
+                    let _ = tx.send(SessionCommand::SendRaw(m6));
+                    let _ = tx.send(SessionCommand::SendRaw(m7));
+                    let _ = tx.send(SessionCommand::SendRaw(m8));
+                    let _ = tx.send(SessionCommand::SendRaw(m9));
+                    let _ = tx.send(SessionCommand::SendRaw(m10));
+                    let _ = tx.send(SessionCommand::SendRaw(m11));
                 }
             }
         }
@@ -1278,6 +1341,15 @@ async fn handle_command(
             let _ = tx.send(SessionCommand::SendRaw(m5));
         }
         "status" => {
+            if !is_staff {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to view backend status.",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
             let health = ctx.health_rx.borrow().clone();
             let m1 = encode_system_chat_packet(
                 "§8§m                                                  §r",
@@ -1318,7 +1390,16 @@ async fn handle_command(
             let _ = tx.send(SessionCommand::SendRaw(m6));
         }
         "ping" => {
-            let msg = encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §7Network latency: §a~15ms", false);
+            let ping = ctx.queue.lock().await.ping_of(session_id).unwrap_or(0);
+            let display_ping = if ping == 0 {
+                "<1".to_string()
+            } else {
+                ping.to_string()
+            };
+            let msg = encode_system_chat_packet(
+                &format!("§b§lᴢᴇɴɪᴛʜ §8» §7Your latency: §a{}ms", display_ping),
+                false,
+            );
             let _ = tx.send(SessionCommand::SendRaw(msg));
         }
         "help" => {
@@ -1328,19 +1409,15 @@ async fn handle_command(
             );
             let m2 = encode_system_chat_packet("§b§l  ᴢᴇɴɪᴛʜ §8» §fAvailable Commands", false);
             let m3 = encode_system_chat_packet(
-                "  §b/transfer §8- §7Instantly connect to backend server",
-                false,
-            );
-            let m4 = encode_system_chat_packet(
                 "  §e/info     §8- §7View your position and estimated wait time",
                 false,
             );
-            let m5 = encode_system_chat_packet(
-                "  §e/status   §8- §7View backend server health and latency",
+            let m4 = encode_system_chat_packet(
+                "  §e/ping     §8- §7Display your round-trip network latency",
                 false,
             );
-            let m6 = encode_system_chat_packet(
-                "  §e/ping     §8- §7Display your network latency",
+            let m5 = encode_system_chat_packet(
+                "  §e/help     §8- §7Display this command reference",
                 false,
             );
             let _ = tx.send(SessionCommand::SendRaw(m1));
@@ -1348,21 +1425,32 @@ async fn handle_command(
             let _ = tx.send(SessionCommand::SendRaw(m3));
             let _ = tx.send(SessionCommand::SendRaw(m4));
             let _ = tx.send(SessionCommand::SendRaw(m5));
-            let _ = tx.send(SessionCommand::SendRaw(m6));
 
             if is_staff {
+                let m_head = encode_system_chat_packet("§c§l  Staff Commands:", false);
+                let m_trans = encode_system_chat_packet(
+                    "  §c/transfer      §8- §7Force instant transfer to target backend",
+                    false,
+                );
+                let m_stat = encode_system_chat_packet(
+                    "  §c/status        §8- §7View backend server health and latency",
+                    false,
+                );
                 let m_staff = encode_system_chat_packet(
-                    "  §c/queue         §8- §7Ouvrir ou mettre en pause la file",
+                    "  §c/queue         §8- §7Open or pause queue transit waves",
                     false,
                 );
                 let m_skip = encode_system_chat_packet(
-                    "  §c/queueskip <j> §8- §7Transférer de force un joueur",
+                    "  §c/queueskip <p> §8- §7Force-transfer a specific player",
                     false,
                 );
                 let m_grp = encode_system_chat_packet(
-                    "  §c/group ...     §8- §7Gérer les groupes LuckPerms (list/info/create/add...)",
+                    "  §c/group ...     §8- §7Manage priority groups and staff permissions",
                     false,
                 );
+                let _ = tx.send(SessionCommand::SendRaw(m_head));
+                let _ = tx.send(SessionCommand::SendRaw(m_trans));
+                let _ = tx.send(SessionCommand::SendRaw(m_stat));
                 let _ = tx.send(SessionCommand::SendRaw(m_staff));
                 let _ = tx.send(SessionCommand::SendRaw(m_skip));
                 let _ = tx.send(SessionCommand::SendRaw(m_grp));

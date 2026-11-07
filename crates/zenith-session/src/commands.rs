@@ -30,7 +30,6 @@ pub fn build_commands_payload() -> Vec<u8> {
         "status",
         "ping",
         "help",
-        "spawn",
     ];
 
     for name in simple_cmds {
