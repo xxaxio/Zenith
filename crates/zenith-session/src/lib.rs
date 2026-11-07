@@ -12,6 +12,8 @@ use zenith_wire::{
     write_string, write_varint,
 };
 
+pub mod commands;
+
 /// Unique identifier for an active player session in Zenith.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SessionId(pub u64);
@@ -361,6 +363,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         pos_payload.put_i32(0); // Relative flags
 
         self.shield.write_packet(73, &pos_payload).await?;
+
+        // 5. Send Commands tree (Packet ID 0x10 / 16 in 26.3) for client-side Brigadier autocompletion
+        let commands_payload = commands::build_commands_payload();
+        self.shield.write_packet(16, &commands_payload).await?;
 
         // 3. Clean, concise 1-line welcome in chat
         let user = self.username.clone().unwrap_or_else(|| "Player".into());
