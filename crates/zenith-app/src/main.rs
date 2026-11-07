@@ -63,6 +63,7 @@ struct CommandContext {
     target_server: String,
     hud: Arc<HudRenderer>,
     health_rx: tokio::sync::watch::Receiver<BackendHealth>,
+    totem_enabled: bool,
     hmac_forwarding: Option<HmacForwarding>,
     rp_enabled: bool,
 }
@@ -387,6 +388,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hud_queue = Arc::clone(&queue);
     let hud_renderer = Arc::clone(&hud);
     let hud_sessions = Arc::clone(&active_sessions);
+    let hud_totem_enabled = config.totem.enabled;
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_millis(1000));
         loop {
@@ -411,11 +413,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let limbo_actionbar = if mode == ZenithMode::Limbo {
-                Some(if !hud_health_rx.borrow().is_available() {
-                    zenith_display::encode_actionbar_packet("§c§l● §7Target backend offline")
-                } else {
-                    hud_renderer.render_limbo_actionbar()
-                })
+                Some(
+                    if hud_totem_enabled && !hud_health_rx.borrow().is_available() {
+                        zenith_display::encode_actionbar_packet("§c§l● §7Target backend offline")
+                    } else {
+                        hud_renderer.render_limbo_actionbar()
+                    },
+                )
             } else {
                 None
             };
@@ -571,6 +575,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         target_server: target_server.clone(),
         hud: Arc::clone(&hud),
         health_rx: cmd_health_rx,
+        totem_enabled: config.totem.enabled,
         hmac_forwarding,
         rp_enabled: config.resource_pack.enabled,
     });
@@ -865,7 +870,7 @@ async fn handle_command(
             }
 
             let current_health = ctx.health_rx.borrow().clone();
-            if !current_health.is_available() {
+            if ctx.totem_enabled && !current_health.is_available() {
                 let msg = encode_system_chat_packet(
                     "§b§lᴢᴇɴɪᴛʜ §8» §cTarget server is currently unavailable (restarting). You are protected in queue!",
                     false,
@@ -1456,21 +1461,28 @@ async fn handle_command(
                 false,
             );
             let m2 = encode_system_chat_packet("§b§l  ᴢᴇɴɪᴛʜ §8» §fBackend Server Health", false);
-            let (status_text, ping_text) = match &health {
-                BackendHealth::Healthy { latency_ms } => {
-                    ("§aOnline (Optimal)", format!("§a{}ms", latency_ms))
+            let (status_text, ping_text) = if !ctx.totem_enabled {
+                (
+                    "§aOnline (Available)",
+                    "§7Direct (monitoring disabled)".to_string(),
+                )
+            } else {
+                match &health {
+                    BackendHealth::Healthy { latency_ms } => {
+                        ("§aOnline (Optimal)", format!("§a{}ms", latency_ms))
+                    }
+                    BackendHealth::Degraded { latency_ms, reason } => (
+                        "§eDegraded",
+                        format!("§e{}ms §8(§7{}§8)", latency_ms, reason),
+                    ),
+                    BackendHealth::Offline {
+                        consecutive_failures,
+                        last_error,
+                    } => (
+                        "§cOffline (Holding active)",
+                        format!("§c{} failures §8(§7{}§8)", consecutive_failures, last_error),
+                    ),
                 }
-                BackendHealth::Degraded { latency_ms, reason } => (
-                    "§eDegraded",
-                    format!("§e{}ms §8(§7{}§8)", latency_ms, reason),
-                ),
-                BackendHealth::Offline {
-                    consecutive_failures,
-                    last_error,
-                } => (
-                    "§cOffline (Holding active)",
-                    format!("§c{} failures §8(§7{}§8)", consecutive_failures, last_error),
-                ),
             };
             let m3 =
                 encode_system_chat_packet(&format!("§7  Target: §e{}", ctx.target_server), false);
@@ -1581,9 +1593,8 @@ async fn handle_command(
             match subcmd {
                 "crash" => {
                     let times = encode_title_times_packet(5, 50, 15);
-                    let sub = encode_subtitle_packet(
-                        "§c§lBACKEND RESTARTING §7Recovery in progress...",
-                    );
+                    let sub =
+                        encode_subtitle_packet("§c§lBACKEND RESTARTING §7Recovery in progress...");
                     let title = encode_title_packet("§c⚠");
                     let chat = encode_system_chat_packet(
                         "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
@@ -1623,7 +1634,8 @@ async fn handle_command(
                     let pack_uuid = 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00;
                     let pack_url = "https://assets.horizon.dev/packs/server-pack.zip".to_string();
                     let pack_hash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904".to_string();
-                    let prompt = Some("Pre-caching Horizon server textures in queue...".to_string());
+                    let prompt =
+                        Some("Pre-caching Horizon server textures in queue...".to_string());
                     let _ = tx.send(SessionCommand::PushResourcePack {
                         uuid: pack_uuid,
                         url: pack_url,
