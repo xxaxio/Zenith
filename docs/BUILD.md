@@ -42,33 +42,57 @@ cargo build --release -p zenith-app
 ```
 Binary output: `target/release/zenith` (or `target/release/zenith.exe` on Windows).
 
+### Benchmarking Tool Build (`zenith-bench`)
+```sh
+cargo build --release -p zenith-bench
+```
+Binary output: `target/release/zenith-bench` (or `target/release/zenith-bench.exe` on Windows).
+
 ---
 
 ## 4. Running Zenith
 
 ### Direct Execution
 ```sh
-# Start with default bind address (127.0.0.1:25565)
-./target/release/zenith
+# Start with configuration file
+./target/release/zenith --config zenith.toml
 
-# Specify a custom bind address and logging level
-ZENITH_BIND="0.0.0.0:25565" RUST_LOG="info" ./target/release/zenith
+# Specify custom parameters via CLI
+./target/release/zenith --bind 0.0.0.0:25565 --target 127.0.0.1:25566 --mode queue --wave-size 10
 ```
 
-### Windows PowerShell
-```powershell
-$env:RUST_LOG="info"
-$env:ZENITH_BIND="127.0.0.1:25565"
-.\target\release\zenith.exe
-```
-
-### CLI Flags
+### CLI Arguments & Flags
+- `--config` / `-c <path>`: Path to `zenith.toml` configuration file.
+- `--bind` / `-b <addr>`: Socket address to bind (e.g. `0.0.0.0:25565`).
+- `--target` / `-t <addr>`: Target backend server to transfer players to.
+- `--mode` / `-m <limbo|queue|stress>`: Operational mode.
+- `--wave-size` / `-w <count>`: Number of players drained per batch wave.
+- `--wave-interval <ms>`: Milliseconds between consecutive transfer waves.
+- `--no-shield`: Disables rate-limiting for high-throughput local bot evaluation.
 - `--version` / `-V`: Prints version and exits.
-- `--check`: Validates configuration and internal runtime without binding socket.
+- `--check`: Validates configuration without binding socket.
 
 ---
 
-## 5. Quality & Test Suite
+## 5. Running Synthetic Benchmarks (`zenith-bench`)
+
+```sh
+# 1. Limbo Holding Benchmark (500 bots, 15s hold, 200 concurrency)
+./target/release/zenith-bench limbo-holding 127.0.0.1:25565 500 15 200
+
+# 2. Priority Queue Drain (250 bots drained to backend :25566)
+./target/release/zenith-bench queue-drain 127.0.0.1:25565 127.0.0.1:25566 250 50
+
+# 3. Cyber-Defense Adversary Assault (with external proxy pool)
+./target/release/zenith-bench adversary-storm 127.0.0.1:25565 100 /path/to/proxies.txt 50
+
+# 4. Realistic Production Mix (70% Vanilla, 20% Horizon, 10% Hostiles)
+./target/release/zenith-bench realistic-mix 127.0.0.1:25565 200 10 50
+```
+
+---
+
+## 6. Quality & Test Suite
 
 Zenith enforces a zero-warning policy across all crates:
 

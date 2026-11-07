@@ -72,6 +72,36 @@ In this state, the player is maintained in virtual limbo without terrain.
 | `73` | `0x49` | Clientbound | `SynchronizePlayerPosition` | Positions player at `(X: 0.0, Y: 64.0, Z: 0.0)`, Yaw `0.0`, Pitch `0.0`. |
 | `45` | `0x2D` | Clientbound | `ClientboundKeepAlive` | `[Id: i64]` periodic heartbeat sent every 10 seconds. |
 | `28` | `0x1C` | Serverbound | `ServerboundKeepAlive` | `[Id: i64]` client heartbeat echo. Used for RTT calculation. |
-| `124` | `0x7C` | Clientbound | `Transfer` | `[Host: String] [Port: VarInt]` dispatches client to destination server without disconnect. |
+| `132` | `0x84` | Clientbound | `Transfer` | `[Host: String] [Port: VarInt]` dispatches client to destination server without disconnect. |
 | `10` | `0x0A` | Clientbound | `BossBar` | Displays real-time queue position and progress percentage. |
 | `72` | `0x48` | Clientbound | `SetActionbarText` | Displays countdown ETA and queue status in the Actionbar. |
+
+---
+
+## 3. Cryptographic Token Forwarding (HMAC-SHA256)
+
+For proxy integration (Meridian, Velocity), Zenith supports cryptographic player identity verification via signed tokens:
+
+```
+[UUID: 16 bytes] [Timestamp: 8 bytes big-endian] [Signature: 32 bytes HMAC-SHA256]
+```
+
+- **Replay Protection:** Verified against a sliding window (default $\pm 30\text{ seconds}$).
+- **Integrity:** Tampered UUIDs or altered timestamps invalidate the SHA-256 signature immediately.
+
+---
+
+## 4. Horizon Native Turbo IPC Protocol (`#7484`)
+
+When connecting to Horizon dedicated servers, Zenith communicates over local Unix domain socket (`ctl.sock`) or local TCP socket:
+
+1. **Status Query (`status`)**:
+   Returns microsecond MSPT (`mspt_us`), active player count, and ticks per second without network RTT.
+2. **Player Pre-Warm Hand-Over (`player-expect`)**:
+   Notifies Horizon of an incoming transfer:
+   ```
+   player-expect <UUID> <Username> <Dimension> <Timestamp>
+   ```
+   Horizon allocates player memory buffers in advance.
+3. **Arrival Confirmation (`player-confirm`)**:
+   Acknowledges completion of client transfer.

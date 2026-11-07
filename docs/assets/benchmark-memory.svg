@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgMem" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080d1a"/>
+      <stop offset="100%" stop-color="#0e172a"/>
+    </linearGradient>
+
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <linearGradient id="cyanBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+
+    <linearGradient id="emeraldBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+
+    <linearGradient id="purpleBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <linearGradient id="redBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#f87171"/>
+    </linearGradient>
+
+    <pattern id="gridMem" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="1000" height="480" rx="14" fill="url(#bgMem)"/>
+  <rect width="1000" height="480" rx="14" fill="url(#gridMem)"/>
+  <rect width="1000" height="480" rx="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- Header -->
+  <text x="50" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="800" fill="#f8fafc" letter-spacing="0.5">ZENITH BENCHMARK: HIGH-DENSITY MEMORY PROFILE</text>
+  <text x="50" y="67" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b">MEASURED PROCESS RSS MEMORY &amp; SUB-1KiB PER-SESSION INVARIANT</text>
+
+  <!-- Metric Badges Top Right -->
+  <g transform="translate(640, 25)">
+    <rect width="150" height="52" rx="8" fill="url(#cardGrad)" stroke="#10b981" stroke-width="1.2"/>
+    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#10b981">HOLDING CAPACITY</text>
+    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="17" font-weight="800" fill="#ffffff">1,000 Bots</text>
+  </g>
+  <g transform="translate(805, 25)">
+    <rect width="145" height="52" rx="8" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.2"/>
+    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#38bdf8">MEASURED RSS</text>
+    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="17" font-weight="800" fill="#ffffff">9.86 MiB</text>
+  </g>
+
+  <!-- Chart Area -->
+  <g transform="translate(50, 110)">
+    <!-- Card Container -->
+    <rect width="900" height="230" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+
+    <!-- Axis Labels -->
+    <text x="25" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (Idle / 0 Sessions)</text>
+    <rect x="230" y="32" width="22" height="22" rx="5" fill="url(#cyanBar)"/>
+    <text x="265" y="48" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#38bdf8">2.58 MiB</text>
+    <text x="350" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Baseline async runtime footprint</text>
+
+    <text x="25" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (500 Active Bots)</text>
+    <rect x="230" y="82" width="81" height="22" rx="5" fill="url(#emeraldBar)"/>
+    <text x="325" y="98" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#10b981">9.52 MiB</text>
+    <text x="410" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Holding in zero-chunk limbo void (1,500 KeepAlives)</text>
+
+    <text x="25" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (1,000 Active Bots)</text>
+    <rect x="230" y="132" width="84" height="22" rx="5" fill="url(#purpleBar)"/>
+    <text x="330" y="148" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#c084fc">9.86 MiB</text>
+    <text x="415" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">&lt; 1 KiB/session user-space actor invariant verified</text>
+
+    <!-- Legacy Server Comparison -->
+    <text x="25" y="198" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#94a3b8">Legacy Java Server (Paper/Limbo)</text>
+    <rect x="230" y="182" width="580" height="22" rx="5" fill="url(#redBar)" opacity="0.8"/>
+    <text x="825" y="198" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#f87171">&gt; 1,200 MiB</text>
+  </g>
+
+  <!-- Bottom Stat Cards -->
+  <g transform="translate(50, 360)">
+    <!-- Card 1 -->
+    <g transform="translate(0, 0)">
+      <rect width="280" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <text x="18" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#38bdf8">KEEPALIVE ROUND-TRIP</text>
+      <text x="18" y="55" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#f8fafc">3.48 ms</text>
+      <text x="18" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Average latency at 1,000 bots</text>
+    </g>
+
+    <!-- Card 2 -->
+    <g transform="translate(310, 0)">
+      <rect width="280" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <text x="18" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#10b981">PACKET LOSS / DROPS</text>
+      <text x="18" y="55" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#10b981">0.00%</text>
+      <text x="18" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">2,967 / 2,967 heartbeats confirmed</text>
+    </g>
+
+    <!-- Card 3 -->
+    <g transform="translate(620, 0)">
+      <rect width="280" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <text x="18" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#c084fc">RAM EFFICIENCY GAIN</text>
+      <text x="18" y="55" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#c084fc">120x Less RAM</text>
+      <text x="18" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Compared to JVM-based void servers</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgDef" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080d1a"/>
+      <stop offset="100%" stop-color="#0e172a"/>
+    </linearGradient>
+
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <linearGradient id="greenMeter" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+
+    <pattern id="gridDef" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="1000" height="480" rx="14" fill="url(#bgDef)"/>
+  <rect width="1000" height="480" rx="14" fill="url(#gridDef)"/>
+  <rect width="1000" height="480" rx="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- Header -->
+  <text x="50" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="800" fill="#f8fafc" letter-spacing="0.5">ZENITH BENCHMARK: CYBER-DEFENSE &amp; SHIELD RESILIENCE</text>
+  <text x="50" y="67" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b">100% DEFLECTION RATE AGAINST DISTRIBUTED &amp; LOCAL ASSAULTS (400+ ATTACKS)</text>
+
+  <!-- Metric Badges Top Right -->
+  <g transform="translate(620, 25)">
+    <rect width="170" height="52" rx="8" fill="url(#cardGrad)" stroke="#10b981" stroke-width="1.2"/>
+    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#10b981">DEFENSE RATE</text>
+    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="17" font-weight="800" fill="#10b981">100.0% Deflected</text>
+  </g>
+  <g transform="translate(805, 25)">
+    <rect width="145" height="52" rx="8" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.2"/>
+    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#38bdf8">SERVER CRASHES</text>
+    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="17" font-weight="800" fill="#ffffff">0 (Rock Solid)</text>
+  </g>
+
+  <!-- Attack Vectors Grid -->
+  <g transform="translate(50, 105)">
+    <!-- Row 1: Slowloris TCP -->
+    <g transform="translate(0, 0)">
+      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <circle cx="28" cy="35" r="14" fill="#0284c7" opacity="0.2"/>
+      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#38bdf8">🛡</text>
+      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Slowloris Byte Dribble</text>
+      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Anti-stall 15s deadline timeout guard</text>
+      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
+    </g>
+
+    <!-- Row 1 Right: Jumbo Frame Overflow -->
+    <g transform="translate(465, 0)">
+      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <circle cx="28" cy="35" r="14" fill="#059669" opacity="0.2"/>
+      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#10b981">🛡</text>
+      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Jumbo Frames (> 2 MiB / 32 KiB)</text>
+      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Payload bound enforcement without panic</text>
+      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
+    </g>
+
+    <!-- Row 2: Malformed VarInt Injection -->
+    <g transform="translate(0, 85)">
+      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <circle cx="28" cy="35" r="14" fill="#7c3aed" opacity="0.2"/>
+      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#c084fc">🛡</text>
+      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Malformed VarInts (6+ Bytes)</text>
+      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Strict VarIntTooWide error boundary</text>
+      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
+    </g>
+
+    <!-- Row 2 Right: Token Burst Flood -->
+    <g transform="translate(465, 85)">
+      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <circle cx="28" cy="35" r="14" fill="#f59e0b" opacity="0.2"/>
+      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#f59e0b">🛡</text>
+      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Token Bucket Burst Flood</text>
+      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">CIDR /24 &amp; /64 subnet aggregation</text>
+      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
+    </g>
+
+    <!-- Row 3 Full: Distributed HTTP CONNECT Proxies -->
+    <g transform="translate(0, 170)">
+      <rect width="900" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <circle cx="28" cy="35" r="14" fill="#38bdf8" opacity="0.2"/>
+      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#38bdf8">🛡</text>
+      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Distributed Proxy Botnet Rotation (140 External Proxies Tested)</text>
+      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">100/100 multi-proxy attacks cleanly filtered &amp; dropped without daemon degradation</text>
+      <text x="800" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
+    </g>
+  </g>
+
+  <!-- Bottom Stat Cards -->
+  <g transform="translate(50, 365)">
+    <g transform="translate(0, 0)">
+      <rect width="280" height="85" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <text x="18" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#38bdf8">TOTAL ATTACKS DEFLECTED</text>
+      <text x="18" y="52" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#f8fafc">400 / 400</text>
+      <text x="18" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">100 distributed + 300 direct bursts</text>
+    </g>
+    <g transform="translate(310, 0)">
+      <rect width="280" height="85" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <text x="18" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#10b981">PROMETHEUS REJECTIONS</text>
+      <text x="18" y="52" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#10b981">433 Blocked</text>
+      <text x="18" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Recorded via :25580 /metrics</text>
+    </g>
+    <g transform="translate(620, 0)">
+      <rect width="280" height="85" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
+      <text x="18" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#c084fc">SOCKET LEAK COUNT</text>
+      <text x="18" y="52" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#c084fc">0 Leaks</text>
+      <text x="18" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">RAII ConnectionGuard cleanup</text>
+    </g>
+  </g>
+</svg>

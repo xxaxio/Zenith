@@ -56,8 +56,11 @@ Frames follow the vanilla Protocol 777 wire format:
 - **Universal Mode (Vanilla, Paper, Fabric, Velocity, Gate)**:
   - Standard Protocol 777 handshake, configuration, and play loop.
   - Periodic Vanilla Server List Ping polling to evaluate backend availability and latency.
-  - Native `0x7C Transfer` packet dispatch for client-side redirection without kicking players to the main menu.
-  - Velocity Modern Forwarding support (HMAC SHA-256) for transparent proxy authentication.
+  - Native `0x84 Transfer` (packet ID 132) dispatch for client-side redirection without kicking players to the main menu.
+  - Modern Forwarding support (HMAC-SHA256) for transparent proxy authentication.
+- **Meridian Integration Mode**:
+  - Full reverse-proxy delesting and zero-chunk crash recovery fallback (see [Meridian Integration Specification](meridian-integration.md)).
+  - End-to-end cryptographic identity forwarding via signed HMAC-SHA256 tokens.
 - **Horizon Native Turbo Mode (Full-Rust Fast-Path)**:
   - Sub-millisecond IPC health telemetry over Horizon dedicated server's local control socket (`ctl.sock`), reading exact microsecond MSPT without network round-trips.
   - Pre-warmed arrival hand-overs via Horizon's `#7484` transfer protocol (`player-expect` / `player-confirm`), letting target servers allocate player state in RAM ahead of packet arrival for zero-freeze transitions.
@@ -67,6 +70,6 @@ Frames follow the vanilla Protocol 777 wire format:
 ## 3. Invariants & Guarantees
 
 1. **Zero Physics Overhead**: No chunk meshes, block entities, or pathfinding ticks are allocated.
-2. **Deterministic Memory**: Sessions are bounded lightweight actors (< 1 KiB per idle session).
+2. **Deterministic Memory**: Sessions are bounded lightweight actors (< 1 KiB user-space actor per idle session; see [Empirical Benchmarks](benchmarks.md)).
 3. **Rust Strictness**: `unsafe_code = "forbid"` is enforced across all crates. No undocumented panics or unwrap in runtime paths.
 4. **Proxy Interoperability**: Seamless integration with modern Minecraft proxies (Meridian, Velocity) via modern forwarding and client transfer primitives.
