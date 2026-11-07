@@ -114,11 +114,11 @@ pub fn build_bossbar_title(
     root.add_extra(ChatComponent::styled(title, "#00c6ff", true));
 
     // Separator
-    root.add_extra(ChatComponent::styled(" §8• ", "#555555", false));
+    root.add_extra(ChatComponent::styled(" §8| ", "#555555", false));
 
     // Section 2: Position (Label in Gray, numbers in Warm Gold #f9d423)
     root.add_extra(ChatComponent::styled(
-        format!("{pos_label}: "),
+        format!("{pos_label} "),
         "#aaaaaa",
         false,
     ));
@@ -127,16 +127,16 @@ pub fn build_bossbar_title(
         "#f9d423",
         true,
     ));
-    root.add_extra(ChatComponent::styled(" §8/ ", "#777777", false));
+    root.add_extra(ChatComponent::styled("§8/§e", "#777777", false));
     root.add_extra(ChatComponent::styled(format!("{total}"), "#f9d423", false));
 
     // Separator
-    root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
+    root.add_extra(ChatComponent::styled(" §8| ", "#555555", false));
 
     // Section 3: ETA (Label in Gray, time in Spring Neon Green #00ff87)
     let time_str = format_eta(eta_seconds);
     root.add_extra(ChatComponent::styled(
-        format!("{eta_label}: "),
+        format!("{eta_label} "),
         "#aaaaaa",
         false,
     ));
@@ -149,8 +149,8 @@ pub fn build_bossbar_title(
     root
 }
 
-/// Builds the formatted BossBar title for Limbo / Holding mode:
-/// `§b§lᴢᴇɴɪᴛʜ §8• §7ᴠɪʀᴛᴜᴀʟ ʟɪᴍʙᴏ §8│ §7ᴏɴʟɪɴᴇ: §e§l#1 §8│ §7ʜᴇʟᴘ: §e/help`
+/// Builds the sleek, minimal BossBar title for Limbo / Holding mode:
+/// `§b§lᴢᴇɴɪᴛʜ §8| §7ᴏɴʟɪɴᴇ: §e§l#1`
 #[must_use]
 pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) -> ChatComponent {
     let zenith_text = if config.small_caps {
@@ -158,27 +158,15 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
     } else {
         "Zenith".to_string()
     };
-    let limbo_text = if config.small_caps {
-        to_small_caps("Virtual Limbo")
-    } else {
-        "Virtual Limbo".to_string()
-    };
     let online_label = if config.small_caps {
         to_small_caps("Online")
     } else {
         "Online".to_string()
     };
-    let help_label = if config.small_caps {
-        to_small_caps("Help")
-    } else {
-        "Help".to_string()
-    };
 
     let mut root = ChatComponent::plain("");
     root.add_extra(ChatComponent::styled(zenith_text, "#00c6ff", true));
-    root.add_extra(ChatComponent::styled(" §8• ", "#555555", false));
-    root.add_extra(ChatComponent::styled(limbo_text, "#aaaaaa", false));
-    root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
+    root.add_extra(ChatComponent::styled(" §8| ", "#555555", false));
     root.add_extra(ChatComponent::styled(
         format!("{online_label}: "),
         "#aaaaaa",
@@ -189,47 +177,18 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
         "#f9d423",
         true,
     ));
-    root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
-    root.add_extra(ChatComponent::styled(
-        format!("{help_label}: "),
-        "#aaaaaa",
-        false,
-    ));
-    root.add_extra(ChatComponent::styled("/help", "#f9d423", false));
 
     root
 }
 
 /// Builds the Actionbar text for Limbo / Holding mode:
-/// `§8[ §bᴢᴇɴɪᴛʜ §8] §7Connected to Holding Void §8• §7Type §b/transfer §7to join`
+/// `§7Tape §b/transfer §7pour rejoindre`
 #[must_use]
-pub fn build_limbo_actionbar_component(config: &DisplayConfig) -> ChatComponent {
-    let zenith_text = if config.small_caps {
-        to_small_caps("Zenith")
-    } else {
-        "Zenith".to_string()
-    };
-    let void_text = if config.small_caps {
-        to_small_caps("Holding Void")
-    } else {
-        "Holding Void".to_string()
-    };
-
+pub fn build_limbo_actionbar_component(_config: &DisplayConfig) -> ChatComponent {
     let mut root = ChatComponent::plain("");
-    root.add_extra(ChatComponent::styled("§8[ ", "#555555", false));
-    root.add_extra(ChatComponent::styled(zenith_text, "#00c6ff", true));
-    root.add_extra(ChatComponent::styled(
-        " §8] §7Connected to ",
-        "#555555",
-        false,
-    ));
-    root.add_extra(ChatComponent::styled(void_text, "#aaaaaa", false));
-    root.add_extra(ChatComponent::styled(
-        " §8• §7Type §b/transfer §7to join",
-        "#aaaaaa",
-        false,
-    ));
-
+    root.add_extra(ChatComponent::styled("§7Tape ", "#aaaaaa", false));
+    root.add_extra(ChatComponent::styled("/transfer", "#00c6ff", true));
+    root.add_extra(ChatComponent::styled(" §7pour rejoindre", "#aaaaaa", false));
     root
 }
 
@@ -303,5 +262,16 @@ mod tests {
         assert!(json.contains("ǫᴜᴇᴜᴇ"));
         assert!(json.contains("#f9d423"));
         assert!(json.contains("00:45"));
+    }
+
+    #[test]
+    fn test_limbo_bossbar_clean_minimal() {
+        let config = DisplayConfig::default();
+        let comp = build_limbo_bossbar_title(&config, 3);
+        let legacy = comp.to_legacy_string();
+        assert!(legacy.contains("ᴢᴇɴɪᴛʜ"));
+        assert!(legacy.contains("#3"));
+        assert!(!legacy.contains("VIRTUAL LIMBO"));
+        assert!(!legacy.contains("/help"));
     }
 }

@@ -55,10 +55,24 @@ pub enum SessionError {
 pub enum SessionCommand {
     /// Send pre-encoded raw packet bytes down the connection.
     SendRaw(Vec<u8>),
-    /// Dispatches the Protocol 777 Transfer packet (ID 0x7C / 124) and closes the session.
+    /// Dispatches the Protocol 777 Transfer packet (ID 132 in Play state) and closes the session.
     Transfer { host: String, port: u16 },
     /// Terminates the session cleanly.
     Close,
+}
+
+/// Events sent by a session actor up to the server coordinator.
+#[derive(Debug, Clone)]
+pub enum SessionEvent {
+    /// Player executed a chat command.
+    Command {
+        session_id: SessionId,
+        username: String,
+        command: String,
+        args: Vec<String>,
+    },
+    /// Session ended / disconnected.
+    Disconnected { session_id: SessionId },
 }
 
 /// A lightweight, zero-chunk virtual session actor holding a connected player.
@@ -73,6 +87,7 @@ pub struct VirtualSession<S> {
     pub target_server: String,
     shield: ShieldedStream<S>,
     pub cmd_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SessionCommand>>,
+    pub event_tx: Option<tokio::sync::mpsc::UnboundedSender<SessionEvent>>,
 }
 
 impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
@@ -94,6 +109,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
             cmd_rx: None,
+            event_tx: None,
         }
     }
 
@@ -114,12 +130,18 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
             cmd_rx: Some(cmd_rx),
+            event_tx: None,
         }
     }
 
     /// Configures the backend target server string for manual/automatic transfers.
     pub fn set_target_server(&mut self, target: String) {
         self.target_server = target;
+    }
+
+    /// Configures the event sender channel for notifying the server coordinator of commands and disconnects.
+    pub fn set_event_sender(&mut self, tx: tokio::sync::mpsc::UnboundedSender<SessionEvent>) {
+        self.event_tx = Some(tx);
     }
 
     /// Sends a system chat message (packet ID 124 in Protocol 777) into the player's chat box.
@@ -340,30 +362,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
 
         self.shield.write_packet(73, &pos_payload).await?;
 
-        // 3. Welcome banner in chat
+        // 3. Clean, concise 1-line welcome in chat
         let user = self.username.clone().unwrap_or_else(|| "Player".into());
         let _ = self
-            .send_system_chat("§8§m                                                  §r")
-            .await;
-        let _ = self
-            .send_system_chat("§b§l  ᴢᴇɴɪᴛʜ §8» §7Virtual Holding & Transit Gatekeeper")
-            .await;
-        let _ = self
             .send_system_chat(&format!(
-                "§7  Welcome §f{}§7! You are safely in the holding void.",
+                "§b§lᴢᴇɴɪᴛʜ §8» §7Bienvenue §f{}§7. Tape §b/transfer §7pour rejoindre.",
                 user
             ))
-            .await;
-        let _ = self
-            .send_system_chat("§7  • Type §b/transfer §7to switch to the game server.")
-            .await;
-        let _ = self
-            .send_system_chat(
-                "§7  • Type §e/help §7for commands (§e/ping§7, §e/spawn§7, §e/status§7).",
-            )
-            .await;
-        let _ = self
-            .send_system_chat("§8§m                                                  §r")
             .await;
 
         // 4. Heartbeat loop: maintain session with periodic KeepAlive and handle commands
@@ -388,9 +393,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                             write_varint(port as i32, &mut payload);
                             self.shield.write_packet(132, &payload).await?; // 132 = Transfer in Protocol 777 Play state
                             tokio::time::sleep(Duration::from_millis(50)).await;
+                            if let Some(ref tx) = self.event_tx {
+                                let _ = tx.send(SessionEvent::Disconnected { session_id: self.id });
+                            }
                             return Ok(());
                         }
                         Some(SessionCommand::Close) | None => {
+                            if let Some(ref tx) = self.event_tx {
+                                let _ = tx.send(SessionEvent::Disconnected { session_id: self.id });
+                            }
                             return Ok(());
                         }
                     }
@@ -430,63 +441,50 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                 if let Some(cmd_line) = raw_text {
                                     let parts: Vec<&str> = cmd_line.split_whitespace().collect();
                                     let cmd = parts.first().copied().unwrap_or("").to_lowercase();
-                                    match cmd.as_str() {
-                                        "transfer" | "join" | "play" => {
-                                            let target = self.target_server.clone();
-                                            let (host, port) = match target.split_once(':') {
-                                                Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(25565)),
-                                                None => (target.clone(), 25565),
-                                            };
-                                            let _ = self.send_system_chat(&format!("§b§l  ᴢᴇɴɪᴛʜ §8» §aTransferring you to §e{}:{}§a...", host, port)).await;
-                                            tokio::time::sleep(Duration::from_millis(150)).await;
-                                            let mut payload = BytesMut::new();
-                                            write_string(&host, &mut payload);
-                                            write_varint(port as i32, &mut payload);
-                                            self.shield.write_packet(132, &payload).await?; // 132 = Transfer
-                                            tokio::time::sleep(Duration::from_millis(50)).await;
-                                            return Ok(());
-                                        }
-                                        "ping" => {
-                                            let _ = self.send_system_chat(&format!("§b§l  ᴢᴇɴɪᴛʜ §8» §7Round-trip latency: §a{}ms", self.ping_ms)).await;
-                                        }
-                                        "spawn" | "tp" => {
-                                            let mut pos_payload = BytesMut::new();
-                                            write_varint(999, &mut pos_payload); // Teleport ID
-                                            pos_payload.put_f64(0.0); // X
-                                            pos_payload.put_f64(64.0); // Y
-                                            pos_payload.put_f64(0.0); // Z
-                                            pos_payload.put_f64(0.0); // Delta X
-                                            pos_payload.put_f64(0.0); // Delta Y
-                                            pos_payload.put_f64(0.0); // Delta Z
-                                            pos_payload.put_f32(0.0); // Yaw
-                                            pos_payload.put_f32(0.0); // Pitch
-                                            pos_payload.put_i32(0); // Relatives
-                                            self.shield.write_packet(73, &pos_payload).await?;
-                                            let _ = self.send_system_chat("§b§l  ᴢᴇɴɪᴛʜ §8» §7Teleported to spawn coordinates §8(§f0.0§7, §f64.0§7, §f0.0§8)").await;
-                                        }
-                                        "status" | "info" => {
-                                            let uptime_secs = self.connected_at.elapsed().as_secs();
-                                            let user = self.username.as_deref().unwrap_or("Unknown");
-                                            let _ = self.send_system_chat(&format!(
-                                                "§b§l  ᴢᴇɴɪᴛʜ §8» §7Session: §e#{} §8│ §7Player: §f{} §8│ §7Ping: §a{}ms §8│ §7Limbo Uptime: §e{}s",
-                                                self.id.0, user, self.ping_ms, uptime_secs
-                                            )).await;
-                                        }
-                                        "help" => {
-                                            let _ = self.send_system_chat("§8§m                                                  §r").await;
-                                            let _ = self.send_system_chat("§b§l  ᴢᴇɴɪᴛʜ §8» §fInteractive Limbo Commands").await;
-                                            let _ = self.send_system_chat("  §b/transfer §8- §7Transfer immediately to backend server").await;
-                                            let _ = self.send_system_chat("  §e/ping     §8- §7Display your round-trip network latency").await;
-                                            let _ = self.send_system_chat("  §e/spawn    §8- §7Teleport back to origin coordinates").await;
-                                            let _ = self.send_system_chat("  §e/status   §8- §7Inspect your session ID & holding metrics").await;
-                                            let _ = self.send_system_chat("  §e/help     §8- §7Show this interactive help guide").await;
-                                            let _ = self.send_system_chat("§8§m                                                  §r").await;
-                                        }
-                                        _ => {
-                                            if !cmd_line.is_empty() {
-                                                let user = self.username.as_deref().unwrap_or("Player");
-                                                let _ = self.send_system_chat(&format!("§8[§bLimbo§8] §f{}§8: §7{}", user, cmd_line)).await;
+                                    let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
+
+                                    if cmd == "spawn" || cmd == "tp" {
+                                        let mut pos_payload = BytesMut::new();
+                                        write_varint(999, &mut pos_payload); // Teleport ID
+                                        pos_payload.put_f64(0.0); // X
+                                        pos_payload.put_f64(64.0); // Y
+                                        pos_payload.put_f64(0.0); // Z
+                                        pos_payload.put_f64(0.0); // Delta X
+                                        pos_payload.put_f64(0.0); // Delta Y
+                                        pos_payload.put_f64(0.0); // Delta Z
+                                        pos_payload.put_f32(0.0); // Yaw
+                                        pos_payload.put_f32(0.0); // Pitch
+                                        pos_payload.put_i32(0); // Relatives
+                                        self.shield.write_packet(73, &pos_payload).await?;
+                                        let _ = self.send_system_chat("§b§lᴢᴇɴɪᴛʜ §8» §7Téléporté au spawn (0.0, 64.0, 0.0).").await;
+                                    } else if let Some(ref tx) = self.event_tx {
+                                        let user = self.username.clone().unwrap_or_else(|| "Player".to_string());
+                                        let _ = tx.send(SessionEvent::Command {
+                                            session_id: self.id,
+                                            username: user,
+                                            command: cmd,
+                                            args,
+                                        });
+                                    } else {
+                                        // Standalone fallback (e.g. tests)
+                                        match cmd.as_str() {
+                                            "transfer" | "join" | "play" => {
+                                                let target = self.target_server.clone();
+                                                let (host, port) = match target.split_once(':') {
+                                                    Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(25565)),
+                                                    None => (target.clone(), 25565),
+                                                };
+                                                let mut payload = BytesMut::new();
+                                                write_string(&host, &mut payload);
+                                                write_varint(port as i32, &mut payload);
+                                                self.shield.write_packet(132, &payload).await?;
+                                                tokio::time::sleep(Duration::from_millis(50)).await;
+                                                return Ok(());
                                             }
+                                            "ping" => {
+                                                let _ = self.send_system_chat(&format!("§b§lᴢᴇɴɪᴛʜ §8» §7Latence: §a{}ms", self.ping_ms)).await;
+                                            }
+                                            _ => {}
                                         }
                                     }
                                 }
@@ -500,12 +498,23 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                 || msg.contains("reset by peer") =>
                         {
                             // Peer disconnected
+                            if let Some(ref tx) = self.event_tx {
+                                let _ = tx.send(SessionEvent::Disconnected { session_id: self.id });
+                            }
                             return Ok(());
                         }
                         Err(ShieldError::SlowlorisTimeout(_)) => {
+                            if let Some(ref tx) = self.event_tx {
+                                let _ = tx.send(SessionEvent::Disconnected { session_id: self.id });
+                            }
                             return Err(SessionError::ConnectionClosed);
                         }
-                        Err(e) => return Err(SessionError::Shield(e)),
+                        Err(e) => {
+                            if let Some(ref tx) = self.event_tx {
+                                let _ = tx.send(SessionEvent::Disconnected { session_id: self.id });
+                            }
+                            return Err(SessionError::Shield(e));
+                        }
                     }
                 }
             }

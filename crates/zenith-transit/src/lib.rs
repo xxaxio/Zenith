@@ -2,6 +2,7 @@
 
 pub mod config;
 pub mod entry;
+pub mod group;
 pub mod health;
 pub mod priority;
 pub mod queue;
@@ -9,6 +10,7 @@ pub mod wave;
 
 pub use config::{SortingPolicy, TransitConfig};
 pub use entry::QueueEntry;
+pub use group::GroupManager;
 pub use health::TargetServerHealth;
 pub use priority::QueuePriority;
 pub use queue::TransitQueue;

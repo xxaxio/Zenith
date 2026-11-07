@@ -7,6 +7,7 @@ use zenith_session::SessionId;
 use crate::config::{SortingPolicy, TransitConfig};
 use crate::entry::QueueEntry;
 use crate::health::TargetServerHealth;
+use crate::priority::QueuePriority;
 use crate::wave::WaveScheduler;
 
 /// High-performance indexed FIFO / Ping transit queue manager.
@@ -44,6 +45,23 @@ impl TransitQueue {
     /// Adds a player entry into the transit queue.
     pub fn enqueue(&mut self, entry: QueueEntry) {
         self.entries.insert(entry.session_id, entry);
+    }
+
+    /// Updates the priority of an active entry in the queue.
+    pub fn update_priority(&mut self, session_id: SessionId, priority: QueuePriority) {
+        if let Some(entry) = self.entries.get_mut(&session_id) {
+            entry.priority = priority;
+        }
+    }
+
+    /// Finds a session ID by player username (case-insensitive).
+    #[must_use]
+    pub fn session_id_of(&self, username: &str) -> Option<SessionId> {
+        let lower = username.to_lowercase();
+        self.entries
+            .values()
+            .find(|e| e.username.to_lowercase() == lower)
+            .map(|e| e.session_id)
     }
 
     /// Removes a player from the queue in O(1) upon disconnect or cancellation.
