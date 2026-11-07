@@ -372,7 +372,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         let user = self.username.clone().unwrap_or_else(|| "Player".into());
         let _ = self
             .send_system_chat(&format!(
-                "§b§lᴢᴇɴɪᴛʜ §8» §7Bienvenue §f{}§7. Tape §b/transfer §7pour rejoindre.",
+                "§b§lᴢᴇɴɪᴛʜ §8» §7Welcome §f{}§7. Type §b/transfer §7to connect.",
                 user
             ))
             .await;

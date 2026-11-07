@@ -182,13 +182,13 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
 }
 
 /// Builds the Actionbar text for Limbo / Holding mode:
-/// `§7Tape §b/transfer §7pour rejoindre`
+/// `§7Type §b/transfer §7to connect`
 #[must_use]
 pub fn build_limbo_actionbar_component(_config: &DisplayConfig) -> ChatComponent {
     let mut root = ChatComponent::plain("");
-    root.add_extra(ChatComponent::styled("§7Tape ", "#aaaaaa", false));
+    root.add_extra(ChatComponent::styled("§7Type ", "#aaaaaa", false));
     root.add_extra(ChatComponent::styled("/transfer", "#00c6ff", true));
-    root.add_extra(ChatComponent::styled(" §7pour rejoindre", "#aaaaaa", false));
+    root.add_extra(ChatComponent::styled(" §7to connect", "#aaaaaa", false));
     root
 }
 

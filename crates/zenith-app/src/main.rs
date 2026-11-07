@@ -395,7 +395,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let limbo_actionbar = if mode == ZenithMode::Limbo {
                 Some(if !hud_health_rx.borrow().is_available() {
                     zenith_display::encode_actionbar_packet(
-                        "{\"text\":\"§c§l● §7Serveur cible en redémarrage... §8| §b§lᴢᴇɴɪᴛʜ §7Sas sécurisé\"}",
+                        "§c§l● §7Target backend offline §8| §b§lᴢᴇɴɪᴛʜ §7Virtual Holding",
                     )
                 } else {
                     hud_renderer.render_limbo_actionbar()
