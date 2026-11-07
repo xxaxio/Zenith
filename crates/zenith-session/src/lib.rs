@@ -434,9 +434,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                 let raw_text = match id {
                                     7 | 8 => zenith_wire::read_string(&mut &payload[..], 256).ok(),
                                     9 => {
+                                        // Zenith is a zero-chunk transit holding gatekeeper: regular player chat is disabled.
+                                        // Only commands starting with '/' are accepted.
                                         if let Ok(msg) = zenith_wire::read_string(&mut &payload[..], 256) {
                                             let msg = msg.trim();
-                                            Some(msg.strip_prefix('/').unwrap_or(msg).to_string())
+                                            msg.strip_prefix('/').map(|cmd| cmd.to_string())
                                         } else {
                                             None
                                         }

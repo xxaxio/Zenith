@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -112,7 +113,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
     let queue = Arc::new(Mutex::new(TransitQueue::new(transit_config)));
-    let group_manager = Arc::new(Mutex::new(GroupManager::default()));
+    let groups_path = env::var("ZENITH_GROUPS_FILE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("E:\\Zenith\\groups.toml"));
+    let group_manager = Arc::new(Mutex::new(GroupManager::new(Some(groups_path))));
     let hud = Arc::new(HudRenderer::new(DisplayConfig::default()));
     let active_sessions: ActiveSessions = Arc::new(Mutex::new(HashMap::new()));
     let is_queue_active = Arc::new(AtomicBool::new(mode == ZenithMode::Queue));
@@ -558,10 +562,168 @@ async fn handle_command(
 
             let subcmd = args.first().map(|s| s.as_str()).unwrap_or("");
             match subcmd {
+                "create" => {
+                    if args.len() < 3 {
+                        let msg = encode_system_chat_packet(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group create <nom> <poids> [staff: true/false]",
+                            false,
+                        );
+                        let _ = tx.send(SessionCommand::SendRaw(msg));
+                        return;
+                    }
+                    let name = &args[1];
+                    let weight: u32 = match args[2].parse() {
+                        Ok(w) => w,
+                        Err(_) => {
+                            let msg = encode_system_chat_packet(
+                                "§b§lᴢᴇɴɪᴛʜ §8» §cLe poids doit être un entier positif (ex: 100).",
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                            return;
+                        }
+                    };
+                    let is_staff_group = args
+                        .get(3)
+                        .map(|s| s == "true" || s == "1")
+                        .unwrap_or(false);
+
+                    let mut gm = ctx.group_mgr.lock().await;
+                    match gm.create_group(name, weight, is_staff_group) {
+                        Ok(()) => {
+                            info!(by = %username, group = %name, weight, is_staff = is_staff_group, "Created group");
+                            let msg = encode_system_chat_packet(
+                                &format!(
+                                    "§b§lᴢᴇɴɪᴛʜ §8» §aGroupe §e{} §acréé avec succès (poids: §b{}§a, staff: §b{}§a).",
+                                    name,
+                                    weight,
+                                    if is_staff_group { "oui" } else { "non" }
+                                ),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                        Err(e) => {
+                            let msg = encode_system_chat_packet(
+                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                    }
+                }
+                "delete" => {
+                    if args.len() < 2 {
+                        let msg = encode_system_chat_packet(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group delete <nom>",
+                            false,
+                        );
+                        let _ = tx.send(SessionCommand::SendRaw(msg));
+                        return;
+                    }
+                    let name = &args[1];
+                    let mut gm = ctx.group_mgr.lock().await;
+                    match gm.delete_group(name) {
+                        Ok(()) => {
+                            info!(by = %username, group = %name, "Deleted group");
+                            let msg = encode_system_chat_packet(
+                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §aGroupe §e{} §asupprimé.", name),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                        Err(e) => {
+                            let msg = encode_system_chat_packet(
+                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                    }
+                }
+                "setweight" => {
+                    if args.len() < 3 {
+                        let msg = encode_system_chat_packet(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group setweight <groupe> <poids>",
+                            false,
+                        );
+                        let _ = tx.send(SessionCommand::SendRaw(msg));
+                        return;
+                    }
+                    let name = &args[1];
+                    let weight: u32 = match args[2].parse() {
+                        Ok(w) => w,
+                        Err(_) => {
+                            let msg = encode_system_chat_packet(
+                                "§b§lᴢᴇɴɪᴛʜ §8» §cLe poids doit être un entier positif.",
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                            return;
+                        }
+                    };
+
+                    let mut gm = ctx.group_mgr.lock().await;
+                    match gm.set_weight(name, weight) {
+                        Ok(()) => {
+                            info!(by = %username, group = %name, weight, "Updated group weight");
+                            let msg = encode_system_chat_packet(
+                                &format!(
+                                    "§b§lᴢᴇɴɪᴛʜ §8» §aPoids du groupe §e{} §amis à jour: §b{}§a.",
+                                    name, weight
+                                ),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                        Err(e) => {
+                            let msg = encode_system_chat_packet(
+                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                    }
+                }
+                "setstaff" => {
+                    if args.len() < 3 {
+                        let msg = encode_system_chat_packet(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group setstaff <groupe> <true|false>",
+                            false,
+                        );
+                        let _ = tx.send(SessionCommand::SendRaw(msg));
+                        return;
+                    }
+                    let name = &args[1];
+                    let is_staff_flag = args[2] == "true" || args[2] == "1";
+
+                    let mut gm = ctx.group_mgr.lock().await;
+                    match gm.set_staff(name, is_staff_flag) {
+                        Ok(()) => {
+                            info!(by = %username, group = %name, is_staff = is_staff_flag, "Updated group staff permission");
+                            let msg = encode_system_chat_packet(
+                                &format!(
+                                    "§b§lᴢᴇɴɪᴛʜ §8» §aPermission staff du groupe §e{}§a: §b{}§a.",
+                                    name,
+                                    if is_staff_flag { "oui" } else { "non" }
+                                ),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                        Err(e) => {
+                            let msg = encode_system_chat_packet(
+                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(msg));
+                        }
+                    }
+                }
                 "add" => {
                     if args.len() < 3 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group add <owner|staff|vip> <joueur>",
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group add <groupe> <joueur>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -571,7 +733,7 @@ async fn handle_command(
                     let player = &args[2];
 
                     let mut gm = ctx.group_mgr.lock().await;
-                    match gm.add(group, player) {
+                    match gm.add_member(group, player) {
                         Ok(()) => {
                             let new_prio = gm.priority_of(player);
                             let mut q = ctx.queue.lock().await;
@@ -600,7 +762,7 @@ async fn handle_command(
                 "remove" => {
                     if args.len() < 3 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group remove <owner|staff|vip> <joueur>",
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group remove <groupe> <joueur>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -610,7 +772,7 @@ async fn handle_command(
                     let player = &args[2];
 
                     let mut gm = ctx.group_mgr.lock().await;
-                    match gm.remove(group, player) {
+                    match gm.remove_member(group, player) {
                         Ok(()) => {
                             let new_prio = gm.priority_of(player);
                             let mut q = ctx.queue.lock().await;
@@ -636,36 +798,73 @@ async fn handle_command(
                         }
                     }
                 }
+                "info" => {
+                    if args.len() < 2 {
+                        let msg = encode_system_chat_packet(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /group info <groupe>",
+                            false,
+                        );
+                        let _ = tx.send(SessionCommand::SendRaw(msg));
+                        return;
+                    }
+                    let name = &args[1];
+                    let gm = ctx.group_mgr.lock().await;
+                    if let Some(g) = gm.get_group(name) {
+                        let m1 = encode_system_chat_packet(
+                            &format!("§b§l=== Groupe: §e{} §b§l===", g.name),
+                            false,
+                        );
+                        let m2 =
+                            encode_system_chat_packet(&format!("§7Poids: §a{}", g.weight), false);
+                        let m3 = encode_system_chat_packet(
+                            &format!("§7Staff: §f{}", if g.is_staff { "§aOui" } else { "§cNon" }),
+                            false,
+                        );
+                        let mut mem: Vec<_> = g.members.iter().cloned().collect();
+                        mem.sort();
+                        let mem_str = if mem.is_empty() {
+                            "aucun".to_string()
+                        } else {
+                            mem.join(", ")
+                        };
+                        let m4 = encode_system_chat_packet(
+                            &format!("§7Membres ({}) : §f{}", mem.len(), mem_str),
+                            false,
+                        );
+                        let _ = tx.send(SessionCommand::SendRaw(m1));
+                        let _ = tx.send(SessionCommand::SendRaw(m2));
+                        let _ = tx.send(SessionCommand::SendRaw(m3));
+                        let _ = tx.send(SessionCommand::SendRaw(m4));
+                    } else {
+                        let msg = encode_system_chat_packet(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §cGroupe introuvable.",
+                            false,
+                        );
+                        let _ = tx.send(SessionCommand::SendRaw(msg));
+                    }
+                }
                 "list" => {
                     let gm = ctx.group_mgr.lock().await;
                     let msg1 = encode_system_chat_packet(
                         "§b§l=== Groupes & Permissions Zenith ===",
                         false,
                     );
-                    let msg2 = encode_system_chat_packet(
-                        &format!("§eOwners: §f{}", gm.owners().join(", ")),
-                        false,
-                    );
-                    let msg3 = encode_system_chat_packet(
-                        &format!("§bStaff:  §f{}", gm.staff_members().join(", ")),
-                        false,
-                    );
-                    let vips = gm.vip_members();
-                    let vips_str = if vips.is_empty() {
-                        "aucun".to_string()
-                    } else {
-                        vips.join(", ")
-                    };
-                    let msg4 =
-                        encode_system_chat_packet(&format!("§aVIPs:   §f{}", vips_str), false);
                     let _ = tx.send(SessionCommand::SendRaw(msg1));
-                    let _ = tx.send(SessionCommand::SendRaw(msg2));
-                    let _ = tx.send(SessionCommand::SendRaw(msg3));
-                    let _ = tx.send(SessionCommand::SendRaw(msg4));
+                    for g in gm.all_groups() {
+                        let line = format!(
+                            "§e• §b{} §8(§7poids: §a{}§8, §7staff: {}§8, §7membres: §e{}§8)",
+                            g.name,
+                            g.weight,
+                            if g.is_staff { "§aoui" } else { "§cnon" },
+                            g.members.len()
+                        );
+                        let msg = encode_system_chat_packet(&line, false);
+                        let _ = tx.send(SessionCommand::SendRaw(msg));
+                    }
                 }
                 _ => {
                     let msg = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group <add|remove|list> [owner|staff|vip] [joueur]",
+                        "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group <list|info|create|delete|setweight|setstaff|add|remove>",
                         false,
                     );
                     let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -752,7 +951,7 @@ async fn handle_command(
                     false,
                 );
                 let m_grp = encode_system_chat_packet(
-                    "  §c/group <a|r|l> §8- §7Gérer les permissions (owner/staff/vip)",
+                    "  §c/group ...     §8- §7Gérer les groupes LuckPerms (list/info/create/add...)",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(m_staff));

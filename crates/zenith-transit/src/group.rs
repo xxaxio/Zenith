@@ -1,196 +1,306 @@
-//! Group and permission management for priority tiers and admin controls.
+//! LuckPerms-style configurable dynamic groups with persistent TOML storage.
 
 use crate::priority::QueuePriority;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
 
-/// Manages player group memberships (Owners, Staff, VIPs) and maps them to priority tiers.
+/// A configurable group with a unique name, priority weight, staff permission, and members.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Group {
+    /// Unique group identifier (e.g. "admin", "vip", "default")
+    pub name: String,
+    /// Priority weight in the transit queue (higher weight = prioritized first)
+    #[serde(default)]
+    pub weight: u32,
+    /// Whether members of this group have Zenith admin/management permissions
+    #[serde(default)]
+    pub is_staff: bool,
+    /// Registered player usernames (case-insensitive)
+    #[serde(default)]
+    pub members: HashSet<String>,
+}
+
+impl Group {
+    /// Creates a new group.
+    #[must_use]
+    pub fn new(name: impl Into<String>, weight: u32, is_staff: bool) -> Self {
+        Self {
+            name: name.into(),
+            weight,
+            is_staff,
+            members: HashSet::new(),
+        }
+    }
+}
+
+/// Serialized format for `groups.toml`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct ConfigFile {
+    #[serde(default)]
+    pub groups: Vec<GroupConfigEntry>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct GroupConfigEntry {
+    pub name: String,
+    #[serde(default)]
+    pub weight: u32,
+    #[serde(default)]
+    pub is_staff: bool,
+    #[serde(default)]
+    pub members: Vec<String>,
+}
+
+/// Manages dynamic groups, persistence to `groups.toml`, and priority resolution.
+#[derive(Debug, Clone)]
 pub struct GroupManager {
-    owners: HashSet<String>,
-    staff: HashSet<String>,
-    vips: HashSet<String>,
+    groups: HashMap<String, Group>,
+    config_path: Option<PathBuf>,
 }
 
 impl Default for GroupManager {
     fn default() -> Self {
-        let mut owners = HashSet::new();
-        if let Ok(val) = std::env::var("ZENITH_OWNERS") {
-            for name in val.split(',') {
-                let trimmed = name.trim().to_lowercase();
-                if !trimmed.is_empty() {
-                    owners.insert(trimmed);
-                }
-            }
-        }
-
-        let mut staff = HashSet::new();
-        if let Ok(val) = std::env::var("ZENITH_STAFF") {
-            for name in val.split(',') {
-                let trimmed = name.trim().to_lowercase();
-                if !trimmed.is_empty() {
-                    staff.insert(trimmed);
-                }
-            }
-        }
-
-        let mut vips = HashSet::new();
-        if let Ok(val) = std::env::var("ZENITH_VIPS") {
-            for name in val.split(',') {
-                let trimmed = name.trim().to_lowercase();
-                if !trimmed.is_empty() {
-                    vips.insert(trimmed);
-                }
-            }
-        }
-
-        Self {
-            owners,
-            staff,
-            vips,
-        }
+        Self::new(None)
     }
 }
 
 impl GroupManager {
-    /// Creates a new group manager with empty groups or loaded from environment variables.
+    /// Creates a new GroupManager. If `config_path` is given and exists, loads from file.
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
+    pub fn new(config_path: Option<PathBuf>) -> Self {
+        let mut mgr = Self {
+            groups: HashMap::new(),
+            config_path,
+        };
 
-    /// Checks if any staff or owner exists in the system.
-    #[must_use]
-    pub fn has_any_staff(&self) -> bool {
-        !self.owners.is_empty() || !self.staff.is_empty()
-    }
-
-    /// Checks if a player is in the Owners group.
-    /// If no owners are configured yet, allows access for bootstrap setup.
-    #[must_use]
-    pub fn is_owner(&self, username: &str) -> bool {
-        if self.owners.is_empty() {
-            return true;
+        if let Some(ref path) = mgr.config_path.clone() {
+            if path.exists() {
+                if let Err(e) = mgr.load_from_path(path) {
+                    tracing::warn!(error = %e, path = %path.display(), "Failed to load groups.toml, using defaults");
+                    mgr.ensure_default_groups();
+                }
+            } else {
+                mgr.ensure_default_groups();
+                let _ = mgr.save();
+            }
+        } else {
+            mgr.ensure_default_groups();
         }
-        self.owners.contains(&username.to_lowercase())
+
+        mgr
     }
 
-    /// Checks if a player has Staff privileges (Owner or Staff).
-    /// If no staff or owners are configured yet, allows access for bootstrap setup.
-    #[must_use]
-    pub fn is_staff(&self, username: &str) -> bool {
-        if !self.has_any_staff() {
-            return true;
+    /// Ensures that at least a "default" group exists.
+    fn ensure_default_groups(&mut self) {
+        if !self.groups.contains_key("default") {
+            self.groups
+                .insert("default".to_string(), Group::new("default", 0, false));
         }
+    }
+
+    /// Loads groups from a TOML file.
+    pub fn load_from_path(&mut self, path: &Path) -> Result<(), String> {
+        let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let parsed: ConfigFile = toml::from_str(&content).map_err(|e| e.to_string())?;
+
+        self.groups.clear();
+        for entry in parsed.groups {
+            let key = entry.name.to_lowercase();
+            let mut members = HashSet::new();
+            for m in entry.members {
+                members.insert(m.to_lowercase());
+            }
+            self.groups.insert(
+                key,
+                Group {
+                    name: entry.name,
+                    weight: entry.weight,
+                    is_staff: entry.is_staff,
+                    members,
+                },
+            );
+        }
+
+        self.ensure_default_groups();
+        Ok(())
+    }
+
+    /// Saves groups to the configured TOML file.
+    pub fn save(&self) -> Result<(), String> {
+        let Some(ref path) = self.config_path else {
+            return Ok(());
+        };
+
+        let mut entries = Vec::new();
+        let mut sorted_groups: Vec<_> = self.groups.values().collect();
+        sorted_groups.sort_by_key(|a| std::cmp::Reverse(a.weight));
+
+        for g in sorted_groups {
+            let mut mem_list: Vec<_> = g.members.iter().cloned().collect();
+            mem_list.sort();
+            entries.push(GroupConfigEntry {
+                name: g.name.clone(),
+                weight: g.weight,
+                is_staff: g.is_staff,
+                members: mem_list,
+            });
+        }
+
+        let cfg = ConfigFile { groups: entries };
+        let toml_str = toml::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
+
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        fs::write(path, toml_str).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    /// Checks if a group exists.
+    #[must_use]
+    pub fn has_group(&self, name: &str) -> bool {
+        self.groups.contains_key(&name.to_lowercase())
+    }
+
+    /// Retrieves a group by name (case-insensitive).
+    #[must_use]
+    pub fn get_group(&self, name: &str) -> Option<&Group> {
+        self.groups.get(&name.to_lowercase())
+    }
+
+    /// Returns all groups sorted by weight descending.
+    #[must_use]
+    pub fn all_groups(&self) -> Vec<&Group> {
+        let mut list: Vec<&Group> = self.groups.values().collect();
+        list.sort_by(|a, b| b.weight.cmp(&a.weight).then_with(|| a.name.cmp(&b.name)));
+        list
+    }
+
+    /// Creates a new group.
+    pub fn create_group(
+        &mut self,
+        name: &str,
+        weight: u32,
+        is_staff: bool,
+    ) -> Result<(), &'static str> {
+        let lower = name.trim().to_lowercase();
+        if lower.is_empty() {
+            return Err("Le nom du groupe ne peut pas être vide");
+        }
+        if self.groups.contains_key(&lower) {
+            return Err("Un groupe avec ce nom existe déjà");
+        }
+
+        self.groups
+            .insert(lower.clone(), Group::new(name.trim(), weight, is_staff));
+        let _ = self.save();
+        Ok(())
+    }
+
+    /// Deletes a group. Cannot delete the default group.
+    pub fn delete_group(&mut self, name: &str) -> Result<(), &'static str> {
+        let lower = name.trim().to_lowercase();
+        if lower == "default" {
+            return Err("Impossible de supprimer le groupe 'default'");
+        }
+        if self.groups.remove(&lower).is_none() {
+            return Err("Groupe introuvable");
+        }
+        let _ = self.save();
+        Ok(())
+    }
+
+    /// Updates the weight of a group.
+    pub fn set_weight(&mut self, name: &str, weight: u32) -> Result<(), &'static str> {
+        let lower = name.trim().to_lowercase();
+        let group = self.groups.get_mut(&lower).ok_or("Groupe introuvable")?;
+        group.weight = weight;
+        let _ = self.save();
+        Ok(())
+    }
+
+    /// Updates the staff permission of a group.
+    pub fn set_staff(&mut self, name: &str, is_staff: bool) -> Result<(), &'static str> {
+        let lower = name.trim().to_lowercase();
+        let group = self.groups.get_mut(&lower).ok_or("Groupe introuvable")?;
+        group.is_staff = is_staff;
+        let _ = self.save();
+        Ok(())
+    }
+
+    /// Adds a player to a group.
+    pub fn add_member(&mut self, group_name: &str, username: &str) -> Result<(), &'static str> {
+        let lower_grp = group_name.trim().to_lowercase();
+        let lower_user = username.trim().to_lowercase();
+        if lower_user.is_empty() {
+            return Err("Le pseudo du joueur ne peut pas être vide");
+        }
+
+        let group = self
+            .groups
+            .get_mut(&lower_grp)
+            .ok_or("Groupe introuvable")?;
+        group.members.insert(lower_user);
+        let _ = self.save();
+        Ok(())
+    }
+
+    /// Removes a player from a group.
+    pub fn remove_member(&mut self, group_name: &str, username: &str) -> Result<(), &'static str> {
+        let lower_grp = group_name.trim().to_lowercase();
+        let lower_user = username.trim().to_lowercase();
+
+        let group = self
+            .groups
+            .get_mut(&lower_grp)
+            .ok_or("Groupe introuvable")?;
+        if !group.members.remove(&lower_user) {
+            return Err("Le joueur ne fait pas partie de ce groupe");
+        }
+        let _ = self.save();
+        Ok(())
+    }
+
+    /// Returns the highest weight for a player across all groups they belong to.
+    #[must_use]
+    pub fn weight_of(&self, username: &str) -> u32 {
         let lower = username.to_lowercase();
-        self.owners.contains(&lower) || self.staff.contains(&lower)
+        let mut max_weight = 0;
+        for g in self.groups.values() {
+            if g.members.contains(&lower) && g.weight > max_weight {
+                max_weight = g.weight;
+            }
+        }
+        max_weight
     }
 
-    /// Checks if a player is in the VIP group.
-    #[must_use]
-    pub fn is_vip(&self, username: &str) -> bool {
-        self.vips.contains(&username.to_lowercase())
-    }
-
-    /// Returns the assigned QueuePriority for a given player username.
+    /// Returns the mapped QueuePriority for a player based on their highest group weight.
     #[must_use]
     pub fn priority_of(&self, username: &str) -> QueuePriority {
+        QueuePriority::from(self.weight_of(username))
+    }
+
+    /// Checks if any player is designated as staff in any group.
+    #[must_use]
+    pub fn has_any_active_staff(&self) -> bool {
+        self.groups
+            .values()
+            .any(|g| g.is_staff && !g.members.is_empty())
+    }
+
+    /// Checks if a player has Staff privileges.
+    /// If no staff exists in the system yet, allows access for bootstrap configuration.
+    #[must_use]
+    pub fn is_staff(&self, username: &str) -> bool {
+        if !self.has_any_active_staff() {
+            return true;
+        }
         let lower = username.to_lowercase();
-        if self.owners.contains(&lower) || self.staff.contains(&lower) {
-            QueuePriority::Staff
-        } else if self.vips.contains(&lower) {
-            QueuePriority::Vip
-        } else {
-            QueuePriority::Standard
-        }
-    }
-
-    /// Adds a player to a group (`owner`, `staff`, `vip`).
-    pub fn add(&mut self, group: &str, username: &str) -> Result<(), &'static str> {
-        let lower = username.to_lowercase();
-        match group.to_lowercase().as_str() {
-            "owner" | "owners" => {
-                self.owners.insert(lower.clone());
-                self.staff.insert(lower);
-                Ok(())
-            }
-            "staff" => {
-                self.staff.insert(lower);
-                Ok(())
-            }
-            "vip" | "vips" => {
-                self.vips.insert(lower);
-                Ok(())
-            }
-            _ => Err("Groupe invalide (groupes: owner, staff, vip)"),
-        }
-    }
-
-    /// Removes a player from a group (`owner`, `staff`, `vip`).
-    pub fn remove(&mut self, group: &str, username: &str) -> Result<(), &'static str> {
-        let lower = username.to_lowercase();
-        match group.to_lowercase().as_str() {
-            "owner" | "owners" => {
-                self.owners.remove(&lower);
-                Ok(())
-            }
-            "staff" => {
-                self.staff.remove(&lower);
-                Ok(())
-            }
-            "vip" | "vips" => {
-                self.vips.remove(&lower);
-                Ok(())
-            }
-            _ => Err("Groupe invalide (groupes: owner, staff, vip)"),
-        }
-    }
-
-    /// Lists members of a specific group.
-    #[must_use]
-    pub fn list(&self, group: &str) -> Option<Vec<String>> {
-        match group.to_lowercase().as_str() {
-            "owner" | "owners" => {
-                let mut v: Vec<_> = self.owners.iter().cloned().collect();
-                v.sort();
-                Some(v)
-            }
-            "staff" => {
-                let mut v: Vec<_> = self.staff.iter().cloned().collect();
-                v.sort();
-                Some(v)
-            }
-            "vip" | "vips" => {
-                let mut v: Vec<_> = self.vips.iter().cloned().collect();
-                v.sort();
-                Some(v)
-            }
-            _ => None,
-        }
-    }
-
-    /// Returns all registered owners.
-    #[must_use]
-    pub fn owners(&self) -> Vec<String> {
-        let mut v: Vec<_> = self.owners.iter().cloned().collect();
-        v.sort();
-        v
-    }
-
-    /// Returns all registered staff members.
-    #[must_use]
-    pub fn staff_members(&self) -> Vec<String> {
-        let mut v: Vec<_> = self.staff.iter().cloned().collect();
-        v.sort();
-        v
-    }
-
-    /// Returns all registered VIP members.
-    #[must_use]
-    pub fn vip_members(&self) -> Vec<String> {
-        let mut v: Vec<_> = self.vips.iter().cloned().collect();
-        v.sort();
-        v
+        self.groups
+            .values()
+            .any(|g| g.is_staff && g.members.contains(&lower))
     }
 }
 
@@ -199,34 +309,73 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_group_manager_defaults() {
-        let mgr = GroupManager::default();
-        // By default, no hardcoded staff or owners from external servers
-        assert!(mgr.owners().is_empty());
-        assert!(mgr.staff_members().is_empty());
-        assert!(mgr.vip_members().is_empty());
-        assert_eq!(mgr.priority_of("random_player"), QueuePriority::Standard);
+    fn test_dynamic_group_lifecycle() {
+        let mut mgr = GroupManager::default();
+
+        // Default group exists
+        assert!(mgr.has_group("default"));
+        assert_eq!(mgr.priority_of("anyone"), QueuePriority::Standard);
+
+        // Create groups
+        mgr.create_group("vip", 50, false).unwrap();
+        mgr.create_group("admin", 1000, true).unwrap();
+
+        assert!(mgr.has_group("VIP"));
+        assert!(mgr.has_group("Admin"));
+
+        // Add admin member first so active staff is established
+        mgr.add_member("admin", "Axxio").unwrap();
+        assert_eq!(mgr.weight_of("axxio"), 1000);
+        assert!(mgr.is_staff("axxio"));
+
+        // Add regular VIP member
+        mgr.add_member("vip", "Joueur1").unwrap();
+        assert_eq!(mgr.weight_of("joueur1"), 50);
+        assert_eq!(mgr.priority_of("joueur1"), QueuePriority::Custom(50));
+        assert!(!mgr.is_staff("joueur1"));
+
+        // Staff check when staff is established
+        assert!(!mgr.is_staff("random_person"));
+
+        // Multi-group highest weight resolution
+        mgr.add_member("admin", "Joueur1").unwrap();
+        assert_eq!(mgr.weight_of("joueur1"), 1000);
+        assert!(mgr.is_staff("joueur1"));
+
+        // Remove from admin, falls back to VIP
+        mgr.remove_member("admin", "joueur1").unwrap();
+        assert_eq!(mgr.weight_of("joueur1"), 50);
+        assert!(!mgr.is_staff("joueur1"));
     }
 
     #[test]
-    fn test_group_manager_add_remove() {
-        let mut mgr = GroupManager::default();
-        mgr.add("owner", "Axxio").unwrap();
-        assert!(mgr.is_owner("axxio"));
-        assert!(mgr.is_staff("axxio"));
-        assert!(!mgr.is_staff("random_player"));
-        assert_eq!(mgr.priority_of("axxio"), QueuePriority::Staff);
+    fn test_toml_persistence() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "zenith_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let config_path = temp_dir.join("groups.toml");
 
-        mgr.add("vip", "TestPlayer").unwrap();
-        assert!(mgr.is_vip("testplayer"));
-        assert_eq!(mgr.priority_of("testplayer"), QueuePriority::Vip);
+        {
+            let mut mgr = GroupManager::new(Some(config_path.clone()));
+            mgr.create_group("moderateur", 500, true).unwrap();
+            mgr.add_member("moderateur", "ModoTest").unwrap();
+        }
 
-        mgr.remove("vip", "testplayer").unwrap();
-        assert!(!mgr.is_vip("testplayer"));
-        assert_eq!(mgr.priority_of("testplayer"), QueuePriority::Standard);
+        // Reload from disk
+        {
+            let mgr = GroupManager::new(Some(config_path.clone()));
+            assert!(mgr.has_group("moderateur"));
+            let mod_group = mgr.get_group("moderateur").unwrap();
+            assert_eq!(mod_group.weight, 500);
+            assert!(mod_group.is_staff);
+            assert!(mod_group.members.contains("modotest"));
+            assert_eq!(mgr.weight_of("modotest"), 500);
+        }
 
-        mgr.add("staff", "Moderator1").unwrap();
-        assert!(mgr.is_staff("moderator1"));
-        assert_eq!(mgr.priority_of("moderator1"), QueuePriority::Staff);
+        let _ = fs::remove_dir_all(temp_dir);
     }
 }
