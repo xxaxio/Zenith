@@ -63,26 +63,29 @@
     <!-- Card Container -->
     <rect width="900" height="230" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
 
-    <!-- Axis Labels -->
+    <!-- Axis Labels & Bars -->
+    <!-- Row 1: Idle -->
     <text x="25" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (Idle / 0 Sessions)</text>
-    <rect x="230" y="32" width="22" height="22" rx="5" fill="url(#cyanBar)"/>
-    <text x="265" y="48" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#38bdf8">2.58 MiB</text>
-    <text x="350" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Baseline async runtime footprint</text>
+    <rect x="255" y="33" width="28" height="20" rx="5" fill="url(#cyanBar)"/>
+    <text x="295" y="48" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#38bdf8">2.58 MiB</text>
+    <text x="465" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11.5" fill="#64748b">Baseline async runtime footprint</text>
 
+    <!-- Row 2: 500 Bots -->
     <text x="25" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (500 Active Bots)</text>
-    <rect x="230" y="82" width="81" height="22" rx="5" fill="url(#emeraldBar)"/>
-    <text x="325" y="98" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#10b981">9.52 MiB</text>
-    <text x="410" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Holding in zero-chunk limbo void (1,500 KeepAlives)</text>
+    <rect x="255" y="83" width="98" height="20" rx="5" fill="url(#emeraldBar)"/>
+    <text x="365" y="98" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#10b981">9.52 MiB</text>
+    <text x="465" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11.5" fill="#64748b">Holding in zero-chunk limbo void (1,500 KeepAlives)</text>
 
+    <!-- Row 3: 1,000 Bots -->
     <text x="25" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (1,000 Active Bots)</text>
-    <rect x="230" y="132" width="84" height="22" rx="5" fill="url(#purpleBar)"/>
-    <text x="330" y="148" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#c084fc">9.86 MiB</text>
-    <text x="415" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">&lt; 1 KiB/session user-space actor invariant verified</text>
+    <rect x="255" y="133" width="102" height="20" rx="5" fill="url(#purpleBar)"/>
+    <text x="370" y="148" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#c084fc">9.86 MiB</text>
+    <text x="465" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11.5" fill="#64748b">&lt; 1 KiB/session user-space actor invariant verified</text>
 
     <!-- Legacy Server Comparison -->
     <text x="25" y="198" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#94a3b8">Legacy Java Server (Paper/Limbo)</text>
-    <rect x="230" y="182" width="580" height="22" rx="5" fill="url(#redBar)" opacity="0.8"/>
-    <text x="825" y="198" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#f87171">&gt; 1,200 MiB</text>
+    <rect x="255" y="183" width="530" height="20" rx="5" fill="url(#redBar)" opacity="0.85"/>
+    <text x="798" y="198" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#f87171">&gt; 1,200 MiB</text>
   </g>
 
   <!-- Bottom Stat Cards -->
