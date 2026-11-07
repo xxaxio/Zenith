@@ -1,3 +1,18 @@
+# Priority group configuration (LuckPerms style).
+# Players are ordered by descending weight in the transit queue (zenith-transit).
+
+[[groups]]
+name = "admin"
+weight = 1000
+is_staff = true
+members = []
+
+[[groups]]
+name = "vip"
+weight = 500
+is_staff = false
+members = []
+
 [[groups]]
 name = "default"
 weight = 0

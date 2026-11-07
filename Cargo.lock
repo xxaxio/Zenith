@@ -901,6 +901,7 @@ dependencies = [
 name = "zenith-swarm"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "tokio",
  "tracing",
  "tracing-subscriber",

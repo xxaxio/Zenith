@@ -139,6 +139,11 @@ impl TransitQueue {
         to_drain
     }
 
+    /// Sets the queue pause state explicitly.
+    pub fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
+    }
+
     /// Toggles the queue pause state (e.g. for maintenance or admin `/queue` command).
     pub fn toggle_pause(&mut self) -> bool {
         self.paused = !self.paused;

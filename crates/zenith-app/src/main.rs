@@ -78,17 +78,64 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let bind_addr = env::var("ZENITH_BIND").unwrap_or_else(|_| "0.0.0.0:25565".to_string());
-    let target_server = env::var("ZENITH_TARGET").unwrap_or_else(|_| "127.0.0.1:25566".to_string());
-    let wave_size: usize = env::var("ZENITH_WAVE_SIZE")
-        .ok()
-        .and_then(|s| s.parse().ok())
+    let mut cli_mode = None;
+    let mut cli_wave_size = None;
+    let mut cli_wave_interval = None;
+    let mut cli_target = None;
+    let mut cli_bind = None;
+
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--mode" | "-m" if i + 1 < args.len() => {
+                cli_mode = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--wave-size" | "-w" if i + 1 < args.len() => {
+                cli_wave_size = args[i + 1].parse().ok();
+                i += 2;
+            }
+            "--wave-interval" if i + 1 < args.len() => {
+                cli_wave_interval = args[i + 1].parse().ok();
+                i += 2;
+            }
+            "--target" | "-t" if i + 1 < args.len() => {
+                cli_target = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--bind" | "-b" if i + 1 < args.len() => {
+                cli_bind = Some(args[i + 1].clone());
+                i += 2;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    let bind_addr = cli_bind
+        .or_else(|| env::var("ZENITH_BIND").ok())
+        .unwrap_or_else(|| "0.0.0.0:25565".to_string());
+    let target_server = cli_target
+        .or_else(|| env::var("ZENITH_TARGET").ok())
+        .unwrap_or_else(|| "127.0.0.1:25566".to_string());
+    let wave_size: usize = cli_wave_size
+        .or_else(|| {
+            env::var("ZENITH_WAVE_SIZE")
+                .ok()
+                .and_then(|s| s.parse().ok())
+        })
         .unwrap_or(5);
-    let wave_interval_ms: u64 = env::var("ZENITH_WAVE_INTERVAL_MS")
-        .ok()
-        .and_then(|s| s.parse().ok())
+    let wave_interval_ms: u64 = cli_wave_interval
+        .or_else(|| {
+            env::var("ZENITH_WAVE_INTERVAL_MS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+        })
         .unwrap_or(4000);
-    let mode_str = env::var("ZENITH_MODE").unwrap_or_else(|_| "limbo".to_string());
+    let mode_str = cli_mode
+        .or_else(|| env::var("ZENITH_MODE").ok())
+        .unwrap_or_else(|| "limbo".to_string());
     let mode = match mode_str.to_lowercase().as_str() {
         "queue" | "transit" => ZenithMode::Queue,
         "stress" | "benchmark" => ZenithMode::Stress,
@@ -162,7 +209,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                     if totem_mode == ZenithMode::Queue {
                         totem_queue_active.store(false, Ordering::SeqCst);
-                        totem_queue.lock().await.toggle_pause();
+                        totem_queue.lock().await.set_paused(true);
                     }
 
                     let sessions = totem_sessions.lock().await;
@@ -193,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                     if totem_mode == ZenithMode::Queue {
                         totem_queue_active.store(true, Ordering::SeqCst);
-                        totem_queue.lock().await.toggle_pause();
+                        totem_queue.lock().await.set_paused(false);
                     }
 
                     let sessions = totem_sessions.lock().await;
