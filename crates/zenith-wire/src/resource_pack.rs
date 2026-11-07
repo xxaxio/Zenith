@@ -104,8 +104,7 @@ impl ResourcePackPush {
 
         if let Some(ref text) = self.prompt {
             buf.put_u8(1); // Has prompt component
-            let json = format!(r#"{{"text":"{}"}}"#, text.replace('"', "\\\""));
-            write_string(&json, &mut buf);
+            crate::write_nbt_string(text, &mut buf);
         } else {
             buf.put_u8(0); // No prompt component
         }
@@ -132,7 +131,7 @@ impl ResourcePackPush {
             false
         };
         let prompt = if has_prompt && buf.has_remaining() {
-            Some(crate::read_string(&mut buf, 32767)?)
+            crate::read_nbt_string(&mut buf).ok()
         } else {
             None
         };

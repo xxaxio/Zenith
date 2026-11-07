@@ -370,6 +370,34 @@ pub fn build_commands_payload() -> Vec<u8> {
         });
     }
 
+    // /test <action>
+    {
+        let test_idx = nodes.len() as i32;
+        let action_arg_idx = test_idx + 1;
+        nodes.push(CommandNode {
+            kind: 1,
+            executable: false,
+            restricted: false,
+            children: vec![action_arg_idx],
+            redirect: None,
+            name: "test".to_string(),
+            parser: None,
+            suggestions: None,
+        });
+        nodes[0].children.push(test_idx);
+
+        nodes.push(CommandNode {
+            kind: 2,
+            executable: true,
+            restricted: false,
+            children: Vec::new(),
+            redirect: None,
+            name: "action".to_string(),
+            parser: Some((5, vec![0])), // 0 = single word
+            suggestions: None,
+        });
+    }
+
     let commands = Commands { nodes, root: 0 };
     let mut writer = Writer::new();
     Commands::write(&commands, &mut writer);

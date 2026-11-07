@@ -504,7 +504,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                 }
                             } else if id == 44 { // ResourcePackResponse in Play state
                                 if let Ok(resp) = zenith_wire::ResourcePackResponse::decode(&payload) {
-                                    debug!(session = ?self.id, ?resp.action, "Received resource pack response");
+                                    info!(session = ?self.id, ?resp.action, "Player resource pack response received");
                                     if let Some(ref tx) = self.event_tx {
                                         let _ = tx.send(SessionEvent::ResourcePackStatus {
                                             session_id: self.id,

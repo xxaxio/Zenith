@@ -1567,6 +1567,86 @@ async fn handle_command(
             }
             info!(by = %username, alert = %alert_text, "Staff alert sent to all players");
         }
+        "test" => {
+            if !is_staff {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to run simulation tests.",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
+            let subcmd = args.first().map(|s| s.as_str()).unwrap_or("");
+            match subcmd {
+                "crash" => {
+                    let times = encode_title_times_packet(5, 50, 15);
+                    let sub = encode_subtitle_packet(
+                        "§c§lBACKEND RESTARTING §7Recovery in progress...",
+                    );
+                    let title = encode_title_packet("§c⚠");
+                    let chat = encode_system_chat_packet(
+                        "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
+                        false,
+                    );
+
+                    let sess = ctx.sessions.lock().await;
+                    for (s_tx, _, _, _, _) in sess.values() {
+                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                    }
+                    info!(by = %username, "Simulated Totem backend crash alert triggered");
+                }
+                "recovery" | "recover" => {
+                    let times = encode_title_times_packet(5, 50, 15);
+                    let sub = encode_subtitle_packet(
+                        "§a§lBACKEND READY §7Resuming automatic transfers...",
+                    );
+                    let title = encode_title_packet("§a▶");
+                    let chat = encode_system_chat_packet(
+                        "§b§lᴢᴇɴɪᴛʜ §8» §a§lBACKEND ONLINE! §7Ping: §e18ms§7. Preparing transfers...",
+                        false,
+                    );
+
+                    let sess = ctx.sessions.lock().await;
+                    for (s_tx, _, _, _, _) in sess.values() {
+                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                    }
+                    info!(by = %username, "Simulated Totem backend recovery alert triggered");
+                }
+                "pack" => {
+                    let pack_uuid = 0x1122_3344_5566_7788_99aa_bbcc_ddee_ff00;
+                    let pack_url = "https://assets.horizon.dev/packs/server-pack.zip".to_string();
+                    let pack_hash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904".to_string();
+                    let prompt = Some("Pre-caching Horizon server textures in queue...".to_string());
+                    let _ = tx.send(SessionCommand::PushResourcePack {
+                        uuid: pack_uuid,
+                        url: pack_url,
+                        hash: pack_hash,
+                        required: false,
+                        prompt,
+                    });
+                    let msg = encode_system_chat_packet(
+                        "§b§lᴢᴇɴɪᴛʜ §8» §aResource Pack push packet sent to your client!",
+                        false,
+                    );
+                    let _ = tx.send(SessionCommand::SendRaw(msg));
+                    info!(by = %username, "Resource Pack push packet sent to caller");
+                }
+                _ => {
+                    let msg = encode_system_chat_packet(
+                        "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /test <crash | recovery | pack>",
+                        false,
+                    );
+                    let _ = tx.send(SessionCommand::SendRaw(msg));
+                }
+            }
+        }
         "ping" => {
             let ping = ctx.queue.lock().await.ping_of(session_id).unwrap_or(0);
             let display_ping = if ping == 0 {

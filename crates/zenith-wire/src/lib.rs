@@ -169,6 +169,27 @@ pub fn write_nbt_string(s: &str, buf: &mut impl BufMut) {
     buf.put_slice(s.as_bytes());
 }
 
+/// Reads a standard Minecraft 26.3 / Protocol 777 Network NBT string tag (`TAG_String`).
+pub fn read_nbt_string(buf: &mut impl Buf) -> Result<String, WireError> {
+    if !buf.has_remaining() {
+        return Err(WireError::Underflow);
+    }
+    let tag_type = buf.get_u8();
+    if tag_type != 8 {
+        return Err(WireError::InvalidUtf8);
+    }
+    if buf.remaining() < 2 {
+        return Err(WireError::Underflow);
+    }
+    let len = buf.get_u16() as usize;
+    if buf.remaining() < len {
+        return Err(WireError::Underflow);
+    }
+    let mut bytes = vec![0u8; len];
+    buf.copy_to_slice(&mut bytes);
+    String::from_utf8(bytes).map_err(|_| WireError::InvalidUtf8)
+}
+
 /// Reads a raw Minecraft frame from an async stream: `[TotalLength: VarInt] [PacketID: VarInt] [Payload]`
 pub async fn read_raw_packet<R: AsyncRead + Unpin>(
     reader: &mut R,
