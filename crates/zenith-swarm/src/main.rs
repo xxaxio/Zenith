@@ -23,18 +23,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get(1)
         .cloned()
         .unwrap_or_else(|| "127.0.0.1:25565".to_string());
-    let bot_count: usize = args
-        .get(2)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(10);
-    let stagger_ms: u64 = args
-        .get(3)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(250);
+    let bot_count: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(10);
+    let stagger_ms: u64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(250);
 
     info!("=======================================================");
     info!("   ZENITH REAL TCP PROTOCOL 777 BOT SWARM HARNESS      ");
-    info!("   Target: {} | Bots: {} | Stagger: {}ms", target, bot_count, stagger_ms);
+    info!(
+        "   Target: {} | Bots: {} | Stagger: {}ms",
+        target, bot_count, stagger_ms
+    );
     info!("=======================================================");
 
     let mut handles = Vec::new();
@@ -59,7 +56,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn run_single_bot(id: usize, target: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn run_single_bot(
+    id: usize,
+    target: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut stream = TcpStream::connect(target).await?;
     let bot_name = format!("Bot_{:02}", id);
 

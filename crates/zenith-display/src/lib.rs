@@ -14,7 +14,10 @@ pub use bossbar::{
     encode_bossbar_add, encode_bossbar_health, encode_bossbar_remove, encode_bossbar_style,
     encode_bossbar_title,
 };
-pub use component::{ChatComponent, build_actionbar_component, build_bossbar_title};
+pub use component::{
+    ChatComponent, build_actionbar_component, build_bossbar_title, build_limbo_actionbar_component,
+    build_limbo_bossbar_title,
+};
 pub use config::{BossBarColor, BossBarDivision, DisplayConfig};
 pub use sound::{SoundCategory, encode_click_sound, encode_sound_packet, encode_transfer_sound};
 pub use title::{
@@ -97,6 +100,39 @@ impl HudRenderer {
         encode_bossbar_remove(uuid)
     }
 
+    /// Renders an initial BossBar Add packet for a Limbo / holding session.
+    #[must_use]
+    pub fn render_limbo_bossbar_add(&self, uuid: u128, online_count: usize) -> Vec<u8> {
+        let title_comp = build_limbo_bossbar_title(&self.config, online_count);
+        encode_bossbar_add(
+            uuid,
+            &title_comp.to_legacy_string(),
+            1.0,
+            BossBarColor::Blue,
+            BossBarDivision::None,
+        )
+    }
+
+    /// Renders BossBar updates (title and full health) for Limbo / holding sessions.
+    #[must_use]
+    pub fn render_limbo_bossbar_update(
+        &self,
+        uuid: u128,
+        online_count: usize,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let title_comp = build_limbo_bossbar_title(&self.config, online_count);
+        let title_pkt = encode_bossbar_title(uuid, &title_comp.to_legacy_string());
+        let health_pkt = encode_bossbar_health(uuid, 1.0);
+        (title_pkt, health_pkt)
+    }
+
+    /// Renders an Actionbar text packet for Limbo / holding sessions.
+    #[must_use]
+    pub fn render_limbo_actionbar(&self) -> Vec<u8> {
+        let comp = build_limbo_actionbar_component(&self.config);
+        encode_actionbar_packet(&comp.to_legacy_string())
+    }
+
     /// Renders an Actionbar text packet with position and ETA.
     #[must_use]
     pub fn render_actionbar(&self, position: usize, total: usize, eta_seconds: u64) -> Vec<u8> {
@@ -172,6 +208,16 @@ mod tests {
 
         let remove_pkt = renderer.render_bossbar_remove(uuid);
         assert!(!remove_pkt.is_empty());
+
+        let limbo_add = renderer.render_limbo_bossbar_add(uuid, 5);
+        assert!(!limbo_add.is_empty());
+
+        let (limbo_title, limbo_health) = renderer.render_limbo_bossbar_update(uuid, 6);
+        assert!(!limbo_title.is_empty());
+        assert!(!limbo_health.is_empty());
+
+        let limbo_ab = renderer.render_limbo_actionbar();
+        assert!(!limbo_ab.is_empty());
     }
 
     #[test]

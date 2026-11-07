@@ -8,9 +8,8 @@ use tokio::net::TcpListener;
 use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error, info};
 use zenith_display::{
-    BossBarColor, BossBarDivision, DisplayConfig, HudRenderer, encode_actionbar_packet,
-    encode_bossbar_add, encode_bossbar_health, encode_bossbar_title, encode_subtitle_packet,
-    encode_system_chat_packet, encode_title_packet, encode_title_times_packet,
+    DisplayConfig, HudRenderer, encode_subtitle_packet, encode_system_chat_packet,
+    encode_title_packet, encode_title_times_packet,
 };
 use zenith_session::{SessionCommand, SessionId, VirtualSession};
 use zenith_shield::ShieldLimits;
@@ -90,7 +89,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             wave_size, wave_interval_ms
         );
     } else {
-        info!("Limbo showcase active: auto-transfer disabled. Players stay in limbo; type /transfer to transfer.");
+        info!(
+            "Limbo showcase active: auto-transfer disabled. Players stay in limbo; type /transfer to transfer."
+        );
     }
     info!("Listening for virtual limbo connections on {}", bind_addr);
 
@@ -125,19 +126,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut sessions = hud_sessions.lock().await;
             for (&session_id, (tx, _username, _uuid, last_pos, bb_uuid)) in sessions.iter_mut() {
                 if mode == ZenithMode::Limbo {
-                    let actionbar = encode_actionbar_packet(&format!(
-                        "§7Connected to §bZenith Limbo§7 · §e{} §7online · Type §e/transfer §7or §e/help",
-                        total
-                    ));
+                    let actionbar = hud_renderer.render_limbo_actionbar();
                     let _ = tx.send(SessionCommand::SendRaw(actionbar));
 
                     if *last_pos != total {
-                        let title = format!(
-                            "§b§lZENITH§8 | §7VIRTUAL HOLDING§8 | §e§lONLINE: #{} §8(Type §e/help§8)",
-                            total
-                        );
-                        let title_pkt = encode_bossbar_title(*bb_uuid, &title);
-                        let health_pkt = encode_bossbar_health(*bb_uuid, 1.0);
+                        let (title_pkt, health_pkt) =
+                            hud_renderer.render_limbo_bossbar_update(*bb_uuid, total);
                         let _ = tx.send(SessionCommand::SendRaw(title_pkt));
                         let _ = tx.send(SessionCommand::SendRaw(health_pkt));
                         *last_pos = total;
@@ -299,16 +293,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     // Send initial BossBar Add
                     if mode == ZenithMode::Limbo {
-                        let add_bb = encode_bossbar_add(
-                            bb_uuid,
-                            &format!(
-                                "§b§lZENITH§8 | §7VIRTUAL HOLDING§8 | §e§lONLINE: #{} §8(Type §e/help§8)",
-                                total
-                            ),
-                            1.0,
-                            BossBarColor::Blue,
-                            BossBarDivision::None,
-                        );
+                        let add_bb = hud_clone.render_limbo_bossbar_add(bb_uuid, total);
                         let _ = cmd_tx.send(SessionCommand::SendRaw(add_bb));
                     } else {
                         let add_bb = hud_clone.render_bossbar_add(bb_uuid, pos, total, eta_seconds);
@@ -324,18 +309,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "§7Virtual Limbo & Queue Gatekeeper"
                     });
                     let _ = cmd_tx.send(SessionCommand::SendRaw(sub));
-                    let title = encode_title_packet("§b§lZENITH");
+                    let title = encode_title_packet("§b§lᴢᴇɴɪᴛʜ");
                     let _ = cmd_tx.send(SessionCommand::SendRaw(title));
 
-                    // Send Welcome Chat
-                    let welcome = encode_system_chat_packet(
-                        &format!(
-                            "§b§l[Zenith] §7Welcome §f{}§7! Position §e#{}§7 / §e{}§7.",
-                            username, pos, total
-                        ),
-                        false,
-                    );
-                    let _ = cmd_tx.send(SessionCommand::SendRaw(welcome));
+                    // Send Welcome Chat (in Queue mode only; Limbo mode displays its own styled banner)
+                    if mode == ZenithMode::Queue {
+                        let welcome = encode_system_chat_packet(
+                            &format!(
+                                "§b§l[Zenith] §7Welcome §f{}§7! Position §e#{}§7 / §e{}§7.",
+                                username, pos, total
+                            ),
+                            false,
+                        );
+                        let _ = cmd_tx.send(SessionCommand::SendRaw(welcome));
+                    }
 
                     // Register in active sessions map
                     sessions_clone
