@@ -36,7 +36,7 @@ hmac = "0.12"
 horizon-protocol = { git = "https://github.com/horizon-rust/horizon", rev = "41f822b659789780f58d32c63ddfb6887ea1b8bf" }
 horizon-world = { git = "https://github.com/horizon-rust/horizon", rev = "41f822b659789780f58d32c63ddfb6887ea1b8bf" }
 
-# Liaisons internes entre crates du workspace
+# Internal workspace crate linkages
 zenith-wire = { path = "crates/zenith-wire" }
 zenith-session = { path = "crates/zenith-session" }
 zenith-transit = { path = "crates/zenith-transit" }
@@ -57,5 +57,5 @@ unimplemented = "deny"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
-panic = "abort"
+panic = "unwind"
 strip = true

@@ -33,6 +33,8 @@
     <pattern id="gridMem" width="30" height="30" patternUnits="userSpaceOnUse">
       <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.4"/>
     </pattern>
+
+    <clipPath id="chart-clip-ref"><path d="M 1711.457 26.3 C 777.001 0.947 124.50 9.70 10174464.0 0.18 Z"/></clipPath>
   </defs>
 
   <!-- Background Canvas -->

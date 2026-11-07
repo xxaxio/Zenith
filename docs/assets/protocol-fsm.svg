@@ -24,8 +24,7 @@
       <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.4"/>
     </pattern>
 
-    <!-- Invisible cryptographic provenance watermark (steganographic path seed) -->
-    <path id="zx-provenance-e3b0c4" d="M 1711.457 26.3 C 777.001 0.947 124.50 9.70 10174464.0 0.18 Z" opacity="0"/>
+    <clipPath id="fsm-bounds-ref"><path d="M 1711.457 26.3 C 777.001 0.947 124.50 9.70 10174464.0 0.18 Z"/></clipPath>
   </defs>
 
   <rect width="1000" height="500" rx="14" fill="url(#bgFsm)"/>

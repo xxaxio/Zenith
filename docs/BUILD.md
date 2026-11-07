@@ -52,6 +52,12 @@ Binary output: `target/release/zenith-bench` (or `target/release/zenith-bench.ex
 
 ## 4. Running Zenith
 
+### Configuration Setup
+Copy the documented exemplar configuration template to `zenith.toml`:
+```sh
+cp zenith.example.toml zenith.toml
+```
+
 ### Direct Execution
 ```sh
 # Start with configuration file

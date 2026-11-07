@@ -8,6 +8,8 @@
 bind = "0.0.0.0:25565"
 
 # Target backend server players are transferred to (Horizon, Paper, Velocity, etc.).
+# NOTE: In production with remote players, specify the public hostname or IP accessible by the clients
+# (e.g. "play.example.com:25566"). If testing locally on the same host, "127.0.0.1:25566" is valid.
 target = "127.0.0.1:25566"
 
 # Server mode:
@@ -58,6 +60,8 @@ pre_warm = true
 
 [shield]
 # Enable defensive cybersecurity layer (Slowloris timeouts, bounds, rate limits).
+# NOTE: If Zenith is placed behind a reverse proxy (e.g. Meridian or HAProxy) where all traffic
+# arrives from the proxy's IP, set enabled = false or set max_connections_per_ip = 50000.
 enabled = true
 
 # Maximum simultaneous active TCP connections allowed from a single IP address.
@@ -97,4 +101,5 @@ challenge_timeout_ms = 3000
 enabled = true
 
 # Bind address and port for the Prometheus scrape endpoint (GET /metrics).
-bind = "0.0.0.0:25580"
+# Default to loopback (127.0.0.1) for secure internal scraping. Use 0.0.0.0 only behind a firewall.
+bind = "127.0.0.1:25580"

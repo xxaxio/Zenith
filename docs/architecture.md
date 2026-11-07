@@ -49,7 +49,7 @@ Frames follow the vanilla Protocol 777 wire format:
 ### 2.4 Priority Queue & HUD Engine (`zenith-transit`, `zenith-display`)
 - **Tier Ordering**: Guaranteed priority levels (Staff, VIP, Standard, Custom) strictly partitioned with FIFO fairness within tiers.
 - **Latency-Optimized Ping Sorting**: Within the same tier, lower latency connections drain first to minimize head-of-line blocking and maximize batch transfer efficiency.
-- **Health-Adaptive Wave Draining**: Batch transfer sizes and wave intervals adjust dynamically based on target server tick times (MSPT) and TPS to prevent backend overload.
+- **Health-Adaptive Wave Draining**: Batch transfer sizes and wave intervals adjust dynamically based on backend telemetry. In Horizon Turbo mode, Zenith leverages exact microsecond MSPT and TPS via IPC control socket; in Universal mode (Vanilla/Paper), it leverages SLP latency and consecutive health probe success windows to prevent backend overload.
 - **Dynamic HUD Feedback**: SmallCaps formatted text, animated BossBar progress bars, rate-limited Actionbar ETA updates, and native Minecraft sound cues (`button.click`, `entity.experience_orb.pickup`).
 
 ### 2.5 Multi-Target Operation: Universal & Horizon Native Modes
