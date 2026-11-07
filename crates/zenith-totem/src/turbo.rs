@@ -25,6 +25,8 @@ pub enum TurboError {
     Rejected(String),
     #[error("Control endpoint path not configured or unsupported on this platform")]
     UnsupportedEndpoint,
+    #[error("Invalid character or delimiter in IPC command parameter: {0}")]
+    InvalidParameter(String),
 }
 
 /// Control endpoint configuration for Horizon Turbo.
@@ -100,7 +102,17 @@ impl HorizonTurboClient {
         uuid: u128,
         target_world: Option<&str>,
     ) -> Result<(), TurboError> {
+        if username.contains(['\r', '\n', '\0', ' ']) {
+            return Err(TurboError::InvalidParameter(
+                "username contains illegal characters".into(),
+            ));
+        }
         let world = target_world.unwrap_or("overworld");
+        if world.contains(['\r', '\n', '\0', ' ']) {
+            return Err(TurboError::InvalidParameter(
+                "target_world contains illegal characters".into(),
+            ));
+        }
         let line = format!("player-expect {username} {uuid:032x} {world}\n");
         let resp = self.send_line(&line).await?;
 
@@ -112,6 +124,11 @@ impl HorizonTurboClient {
 
     /// Confirms that player transfer packet was dispatched down the wire.
     pub async fn notify_player_confirm(&self, username: &str) -> Result<(), TurboError> {
+        if username.contains(['\r', '\n', '\0', ' ']) {
+            return Err(TurboError::InvalidParameter(
+                "username contains illegal characters".into(),
+            ));
+        }
         let line = format!("player-confirm {username}\n");
         let resp = self.send_line(&line).await?;
 
@@ -123,6 +140,11 @@ impl HorizonTurboClient {
 
     /// Sends a line down the IPC endpoint and reads the single JSON line response.
     async fn send_line(&self, line: &str) -> Result<String, TurboError> {
+        if line.trim_end_matches(['\r', '\n']).contains(['\r', '\n']) {
+            return Err(TurboError::InvalidParameter(
+                "command line contains embedded newlines".into(),
+            ));
+        }
         tokio::time::timeout(self.timeout, async {
             match &self.endpoint {
                 TurboEndpoint::Tcp(addr) => {
@@ -220,5 +242,28 @@ mod tests {
                 .is_ok()
         );
         assert!(client.notify_player_confirm("Notch").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_turbo_rejects_injected_parameters() {
+        let client =
+            HorizonTurboClient::new(TurboEndpoint::Tcp("127.0.0.1:40000".parse().unwrap()));
+        let err1 = client
+            .notify_player_expect("bot\nquit\n", 0x1234, None)
+            .await
+            .unwrap_err();
+        assert!(matches!(err1, TurboError::InvalidParameter(_)));
+
+        let err2 = client
+            .notify_player_expect("Steve", 0x1234, Some("world\nstop\n"))
+            .await
+            .unwrap_err();
+        assert!(matches!(err2, TurboError::InvalidParameter(_)));
+
+        let err3 = client
+            .notify_player_confirm("user\r\nkick *")
+            .await
+            .unwrap_err();
+        assert!(matches!(err3, TurboError::InvalidParameter(_)));
     }
 }

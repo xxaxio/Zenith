@@ -296,7 +296,16 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         self.shield.write_packet(0x03, &[]).await?;
 
         // Read client packets until client finishes configuration (Packet ID 0x03 or 0x02)
+        // Bound loop iterations to prevent connection pinning via indefinite packet streaming.
+        let mut packets_read = 0;
         loop {
+            packets_read += 1;
+            if packets_read > 16 {
+                return Err(SessionError::UnexpectedPacket {
+                    state: self.state,
+                    id: 0xFF,
+                });
+            }
             let (packet_id, _) = self.shield.read_packet(false).await?;
             if packet_id == 0x03 || packet_id == 0x02 {
                 break;

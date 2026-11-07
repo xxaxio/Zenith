@@ -127,6 +127,19 @@ impl TransitQueue {
             .map(|idx| (idx + 1, total))
     }
 
+    /// Computes the 1-based ranked positions for all queued players in a single O(N log N) pass.
+    /// Returns a map of `session_id -> (position_1_based, total_queued)`.
+    #[must_use]
+    pub fn ranked_positions(&self) -> std::collections::HashMap<SessionId, (usize, usize)> {
+        let sorted = self.sorted_entries();
+        let total = sorted.len();
+        sorted
+            .into_iter()
+            .enumerate()
+            .map(|(idx, entry)| (entry.session_id, (idx + 1, total)))
+            .collect()
+    }
+
     /// Evaluates and drains the next wave of eligible players if the schedule interval is due.
     pub fn drain_wave(&mut self, now: Instant, health: &TargetServerHealth) -> Vec<QueueEntry> {
         if self.paused || !self.scheduler.is_due(now, health, &self.config) {

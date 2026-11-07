@@ -383,14 +383,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         loop {
             interval.tick().await;
 
-            let q = hud_queue.lock().await;
-            if q.is_empty() {
-                continue;
-            }
-
-            let total = q.len();
-            let nominal_wave_size = q.config().nominal_wave_size.max(1);
-            let nominal_interval_ms = q.config().nominal_interval_ms.max(1000);
+            let (ranked_map, total, nominal_wave_size, nominal_interval_ms) = {
+                let q = hud_queue.lock().await;
+                if q.is_empty() {
+                    continue;
+                }
+                let ranked = if mode == ZenithMode::Queue {
+                    q.ranked_positions()
+                } else {
+                    std::collections::HashMap::new()
+                };
+                (
+                    ranked,
+                    q.len(),
+                    q.config().nominal_wave_size.max(1),
+                    q.config().nominal_interval_ms.max(1000),
+                )
+            };
 
             let limbo_actionbar = if mode == ZenithMode::Limbo {
                 Some(if !hud_health_rx.borrow().is_available() {
@@ -416,7 +425,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let _ = tx.send(SessionCommand::SendRaw(health_pkt));
                         *last_pos = total;
                     }
-                } else if let Some((pos, total)) = q.position_of(session_id) {
+                } else if let Some(&(pos, total)) = ranked_map.get(&session_id) {
                     let eta_seconds = ((pos as u64).saturating_sub(1) / nominal_wave_size as u64)
                         * (nominal_interval_ms / 1000);
 
@@ -594,13 +603,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let peer_ip = peer_addr.ip();
         let _conn_guard = if shield_enabled {
             match conn_tracker.acquire(peer_ip) {
-                Ok(guard) => {
+                Ok(guard_opt) => {
                     let check_res = {
                         let mut rl = rate_limiter.lock().await;
                         rl.check_allowed(peer_ip, Instant::now())
                     };
                     match check_res {
-                        Ok(()) => Some(guard),
+                        Ok(()) => guard_opt,
                         Err(e) => {
                             loop_metrics
                                 .shield_rate_limited_total

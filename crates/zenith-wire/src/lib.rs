@@ -24,6 +24,8 @@ pub enum WireError {
     InvalidUtf8,
     #[error("Invalid state/intent ID: {0}")]
     InvalidIntent(i32),
+    #[error("Invalid Minecraft username: {0:?}")]
+    InvalidUsername(String),
     #[error("IO error: {0}")]
     Io(String),
 }
@@ -274,6 +276,15 @@ impl Handshake {
     }
 }
 
+/// Validates whether a string is a standard Minecraft username:
+/// 1 to 16 ASCII alphanumeric characters or underscores (`^[a-zA-Z0-9_]{1,16}$`).
+#[must_use]
+pub fn is_valid_minecraft_username(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 16
+        && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+}
+
 /// Login Start packet (Packet ID 0x00 in Login state).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoginStart {
@@ -285,6 +296,9 @@ impl LoginStart {
     pub fn decode(payload: &[u8]) -> Result<Self, WireError> {
         let mut buf = payload;
         let name = read_string(&mut buf, 16)?;
+        if !is_valid_minecraft_username(&name) {
+            return Err(WireError::InvalidUsername(name));
+        }
         let uuid = if buf.remaining() >= 16 {
             buf.get_u128()
         } else {
@@ -413,5 +427,31 @@ mod tests {
         let (id, read_payload) = read_raw_packet(&mut reader, 1024).await.unwrap();
         assert_eq!(id, 0x42);
         assert_eq!(&read_payload, payload);
+    }
+
+    #[test]
+    fn test_minecraft_username_validation() {
+        assert!(is_valid_minecraft_username("Steve"));
+        assert!(is_valid_minecraft_username("Axxio_HC"));
+        assert!(is_valid_minecraft_username("Player_123"));
+        assert!(is_valid_minecraft_username("a"));
+        assert!(is_valid_minecraft_username("1234567890123456"));
+
+        // Invalid names
+        assert!(!is_valid_minecraft_username(""));
+        assert!(!is_valid_minecraft_username("12345678901234567")); // 17 chars
+        assert!(!is_valid_minecraft_username("bot\nquit\n"));
+        assert!(!is_valid_minecraft_username("user name"));
+        assert!(!is_valid_minecraft_username("player!"));
+        assert!(!is_valid_minecraft_username("héllò"));
+    }
+
+    #[test]
+    fn test_login_start_rejects_injected_newlines() {
+        let mut buf = bytes::BytesMut::new();
+        write_string("bot\nquit\n", &mut buf);
+        buf.put_u128(0x42);
+        let err = LoginStart::decode(&buf).unwrap_err();
+        assert!(matches!(err, WireError::InvalidUsername(_)));
     }
 }

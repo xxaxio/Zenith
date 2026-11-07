@@ -45,6 +45,7 @@ pub struct ShieldLimits {
     pub max_play_payload: usize,
     pub handshake_timeout: Duration,
     pub play_idle_timeout: Duration,
+    pub write_timeout: Duration,
 }
 
 impl Default for ShieldLimits {
@@ -54,6 +55,7 @@ impl Default for ShieldLimits {
             max_play_payload: 2 * 1024 * 1024, // 2 MiB max play payload
             handshake_timeout: Duration::from_secs(15),
             play_idle_timeout: Duration::from_secs(30),
+            write_timeout: Duration::from_secs(5),
         }
     }
 }
@@ -108,23 +110,40 @@ impl<S: AsyncRead + AsyncWrite + Unpin> ShieldedStream<S> {
         }
     }
 
-    /// Writes a packet frame to the stream.
+    /// Writes a packet frame to the stream bounded by write_timeout to prevent Zero-Window stalls.
     pub async fn write_packet(
         &mut self,
         packet_id: i32,
         payload: &[u8],
     ) -> Result<(), ShieldError> {
-        write_raw_packet(&mut self.stream, packet_id, payload)
-            .await
-            .map_err(ShieldError::Wire)
+        let timeout = self.limits.write_timeout;
+        match tokio::time::timeout(
+            timeout,
+            write_raw_packet(&mut self.stream, packet_id, payload),
+        )
+        .await
+        {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(wire_err)) => Err(ShieldError::Wire(wire_err)),
+            Err(_) => Err(ShieldError::SlowlorisTimeout(timeout)),
+        }
     }
 
-    /// Writes raw pre-framed packet bytes directly to the stream.
+    /// Writes raw pre-framed packet bytes directly to the stream bounded by write_timeout.
     pub async fn write_raw_bytes(&mut self, bytes: &[u8]) -> Result<(), ShieldError> {
         use tokio::io::AsyncWriteExt;
-        self.stream.write_all(bytes).await?;
-        self.stream.flush().await?;
-        Ok(())
+        let timeout = self.limits.write_timeout;
+        match tokio::time::timeout(timeout, async {
+            self.stream.write_all(bytes).await?;
+            self.stream.flush().await?;
+            Ok::<(), std::io::Error>(())
+        })
+        .await
+        {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(io_err)) => Err(ShieldError::Io(io_err)),
+            Err(_) => Err(ShieldError::SlowlorisTimeout(timeout)),
+        }
     }
 
     /// Access the underlying stream.
@@ -188,6 +207,22 @@ mod tests {
         let mut shielded_server = ShieldedStream::new(server, limits);
 
         let res = shielded_server.read_packet(false).await;
+        assert!(matches!(res, Err(ShieldError::SlowlorisTimeout(_))));
+    }
+
+    #[tokio::test]
+    async fn test_slowloris_write_timeout() {
+        // Create a duplex with tiny buffer (64 bytes) and don't read from client side
+        let (_client, server) = duplex(64);
+        let limits = ShieldLimits {
+            write_timeout: Duration::from_millis(50),
+            ..Default::default()
+        };
+        let mut shielded_server = ShieldedStream::new(server, limits);
+
+        // Writing more bytes than duplex capacity will stall and trigger write_timeout
+        let big_payload = vec![0u8; 1024];
+        let res = shielded_server.write_raw_bytes(&big_payload).await;
         assert!(matches!(res, Err(ShieldError::SlowlorisTimeout(_))));
     }
 }

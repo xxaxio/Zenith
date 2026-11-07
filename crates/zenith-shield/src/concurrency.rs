@@ -1,6 +1,6 @@
 //! Connection concurrency tracking and per-IP limit enforcement.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 
@@ -29,6 +29,7 @@ impl Drop for ConnectionGuard {
 pub struct ConnectionTracker {
     max_connections_per_ip: usize,
     counts: Arc<Mutex<HashMap<IpAddr, usize>>>,
+    whitelist: Arc<Mutex<HashSet<IpAddr>>>,
 }
 
 impl ConnectionTracker {
@@ -36,12 +37,37 @@ impl ConnectionTracker {
         Self {
             max_connections_per_ip,
             counts: Arc::new(Mutex::new(HashMap::new())),
+            whitelist: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
+    /// Adds an IP address to the concurrency bypass whitelist (e.g. reverse proxy IP).
+    pub fn add_whitelist(&self, ip: IpAddr) {
+        if let Ok(mut set) = self.whitelist.lock() {
+            set.insert(ip);
+        }
+    }
+
+    /// Checks whether an IP is whitelisted or is a loopback address.
+    pub fn is_whitelisted(&self, ip: &IpAddr) -> bool {
+        if ip.is_loopback() {
+            return true;
+        }
+        self.whitelist
+            .lock()
+            .ok()
+            .map(|set| set.contains(ip))
+            .unwrap_or(false)
+    }
+
     /// Attempts to register a new active connection for the specified IP.
-    /// Returns a `ConnectionGuard` on success, or `ShieldError::TooManyConnectionsPerIp`.
-    pub fn acquire(&self, ip: IpAddr) -> Result<ConnectionGuard, crate::ShieldError> {
+    /// Returns `Ok(Some(ConnectionGuard))` if tracked, `Ok(None)` if whitelisted/loopback,
+    /// or `Err(ShieldError::TooManyConnectionsPerIp)`.
+    pub fn acquire(&self, ip: IpAddr) -> Result<Option<ConnectionGuard>, crate::ShieldError> {
+        if self.is_whitelisted(&ip) {
+            return Ok(None);
+        }
+
         let mut map = self
             .counts
             .lock()
@@ -56,10 +82,10 @@ impl ConnectionTracker {
         }
 
         *current += 1;
-        Ok(ConnectionGuard {
+        Ok(Some(ConnectionGuard {
             ip,
             tracker: Arc::clone(&self.counts),
-        })
+        }))
     }
 
     /// Current count of active connections for an IP.
@@ -95,10 +121,16 @@ mod tests {
         let tracker = ConnectionTracker::new(2);
         let ip: IpAddr = "192.168.1.100".parse().unwrap();
 
-        let guard1 = tracker.acquire(ip).expect("first connection allowed");
+        let guard1 = tracker
+            .acquire(ip)
+            .expect("first connection allowed")
+            .expect("guard");
         assert_eq!(tracker.count_for(&ip), 1);
 
-        let guard2 = tracker.acquire(ip).expect("second connection allowed");
+        let guard2 = tracker
+            .acquire(ip)
+            .expect("second connection allowed")
+            .expect("guard");
         assert_eq!(tracker.count_for(&ip), 2);
 
         // Third connection from same IP must be rejected
@@ -111,11 +143,35 @@ mod tests {
         assert_eq!(tracker.count_for(&ip), 1);
 
         // Now third can acquire
-        let _guard3_ok = tracker.acquire(ip).expect("now allowed after drop");
+        let _guard3_ok = tracker
+            .acquire(ip)
+            .expect("now allowed after drop")
+            .expect("guard");
         assert_eq!(tracker.count_for(&ip), 2);
 
         drop(guard2);
         drop(_guard3_ok);
         assert_eq!(tracker.count_for(&ip), 0);
+    }
+
+    #[test]
+    fn test_proxy_and_loopback_whitelist() {
+        let tracker = ConnectionTracker::new(2);
+        let loopback: IpAddr = "127.0.0.1".parse().unwrap();
+        for _ in 0..10 {
+            let guard = tracker
+                .acquire(loopback)
+                .expect("loopback always permitted");
+            assert!(guard.is_none());
+        }
+
+        let proxy_ip: IpAddr = "10.0.0.50".parse().unwrap();
+        tracker.add_whitelist(proxy_ip);
+        for _ in 0..10 {
+            let guard = tracker
+                .acquire(proxy_ip)
+                .expect("whitelisted proxy permitted");
+            assert!(guard.is_none());
+        }
     }
 }

@@ -291,12 +291,10 @@ impl GroupManager {
     }
 
     /// Checks if a player has Staff privileges.
-    /// If no staff exists in the system yet, allows access for bootstrap configuration.
+    /// Strictly fails closed: returns true only if the player is an explicitly registered
+    /// member of an active staff group.
     #[must_use]
     pub fn is_staff(&self, username: &str) -> bool {
-        if !self.has_any_active_staff() {
-            return true;
-        }
         let lower = username.to_lowercase();
         self.groups
             .values()
@@ -377,5 +375,15 @@ mod tests {
         }
 
         let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn test_is_staff_fails_closed_when_empty() {
+        let mgr = GroupManager::default();
+        // With default group only and no staff registered, all queries must return false
+        assert!(!mgr.has_any_active_staff());
+        assert!(!mgr.is_staff("Axxio_HC"));
+        assert!(!mgr.is_staff("random_user"));
+        assert!(!mgr.is_staff("admin"));
     }
 }
