@@ -20,8 +20,8 @@ Zenith is a standalone limbo and queue server built in Rust for [Horizon](https:
 | **Universal Seamless Transfer** | Done (Phase 4) | Client-side transfer packet dispatch (`0x7C`) without disconnect or loading screens (`zenith-transit`) |
 | **Horizon Turbo Fast-Path** | Done (Phase 5) | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) (`zenith-totem`) |
 | **Prometheus Telemetry** | Done (Phase 5) | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
-| **Synthetic Testkit & Mocks** | Planned (Phase 6) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
-| **Benchmark Harness** | Planned (Phase 6) | Multi-scenario load testing, bot simulations, and memory profiling tool (`zenith-bench`) |
+| **Synthetic Testkit & Mocks** | Done (Phase 6) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
+| **Benchmark Harness** | Done (Phase 6) | Multi-scenario load testing, bot simulations, and memory profiling tool (`zenith-bench`) |
 
 *Status definitions: `Done` (merged & verified in CI), `In progress` (under active implementation), `Planned` (scheduled in project phases).*
 
@@ -39,7 +39,9 @@ crates/
 ├── zenith-display    # BossBar, Actionbar, title and sound packet builders
 ├── zenith-shield     # Defensive security, anti-Slowloris, payload limits
 ├── zenith-totem      # Crash evacuation lifeline & backend health poller
-└── zenith-app        # Production server executable daemon (main.rs)
+├── zenith-app        # Production server executable daemon (main.rs)
+├── zenith-testkit    # Synthetic bot actors (Vanilla, Horizon, Adversary) & mock backends
+└── zenith-bench      # Multi-scenario load-testing CLI and memory RSS profiling harness
 ```
 
 *Test utilities (`zenith-testkit`) are isolated in `[dev-dependencies]`, and the load-testing harness (`zenith-bench`) is an internal tool (`publish = false`) ensuring zero test footprint in production binaries.*

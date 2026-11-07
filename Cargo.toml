@@ -8,7 +8,8 @@ members = [
     "crates/zenith-shield",
     "crates/zenith-totem",
     "crates/zenith-app",
-    "crates/zenith-swarm",
+    "crates/zenith-testkit",
+    "crates/zenith-bench",
 ]
 
 [workspace.package]
@@ -42,6 +43,7 @@ zenith-transit = { path = "crates/zenith-transit" }
 zenith-display = { path = "crates/zenith-display" }
 zenith-shield = { path = "crates/zenith-shield" }
 zenith-totem = { path = "crates/zenith-totem" }
+zenith-testkit = { path = "crates/zenith-testkit" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

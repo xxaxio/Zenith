@@ -863,6 +863,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "zenith-bench"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "zenith-testkit",
+ "zenith-wire",
+]
+
+[[package]]
 name = "zenith-display"
 version = "0.1.0"
 dependencies = [
@@ -898,13 +911,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "zenith-swarm"
+name = "zenith-testkit"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "serde_json",
+ "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "zenith-wire",
 ]
 

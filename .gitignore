@@ -5,3 +5,4 @@
 *.swp
 zenith.toml
 ctl.sock
+.scratch*

@@ -1,0 +1,20 @@
+[package]
+name = "zenith-testkit"
+description = "Synthetic testkit, bot actors (Vanilla, Horizon, Adversary) and mock backends for Zenith."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+zenith-wire.workspace = true
+tokio.workspace = true
+bytes.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

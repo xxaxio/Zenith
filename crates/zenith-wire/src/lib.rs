@@ -341,6 +341,21 @@ impl KeepAlive {
     }
 }
 
+/// Generates a deterministic offline player UUID from a player username.
+pub fn offline_uuid(username: &str) -> u128 {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(b"OfflinePlayer:");
+    hasher.update(username.as_bytes());
+    let hash = hasher.finalize();
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&hash[..16]);
+    // Set version to 3 and RFC 4122 variant
+    bytes[6] = (bytes[6] & 0x0f) | 0x30;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    u128::from_be_bytes(bytes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
