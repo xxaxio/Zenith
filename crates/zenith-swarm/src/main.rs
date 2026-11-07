@@ -1,6 +1,8 @@
 //! Zenith Swarm: Real TCP Minecraft Protocol 777 bot client load generator.
 
 use std::env;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tracing::{error, info};
@@ -34,14 +36,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     info!("=======================================================");
 
+    let active_bots = Arc::new(AtomicUsize::new(0));
+    let success_logins = Arc::new(AtomicUsize::new(0));
+    let failed_bots = Arc::new(AtomicUsize::new(0));
+
+    // Background monitor task reporting progress every second
+    let mon_active = Arc::clone(&active_bots);
+    let mon_success = Arc::clone(&success_logins);
+    let mon_failed = Arc::clone(&failed_bots);
+    let mon_total = bot_count;
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_millis(1000));
+        loop {
+            interval.tick().await;
+            let active = mon_active.load(Ordering::Relaxed);
+            let success = mon_success.load(Ordering::Relaxed);
+            let failed = mon_failed.load(Ordering::Relaxed);
+
+            info!(
+                "[SWARM TELEMETRY] Active in Limbo: {} | Logged in: {} / {} | Failed: {}",
+                active, success, mon_total, failed
+            );
+
+            if success + failed >= mon_total && active == 0 {
+                break;
+            }
+        }
+    });
+
     let mut handles = Vec::new();
 
     for id in 1..=bot_count {
         let target_clone = target.clone();
-        tokio::time::sleep(Duration::from_millis(stagger_ms)).await;
+        let act_clone = Arc::clone(&active_bots);
+        let succ_clone = Arc::clone(&success_logins);
+        let fail_clone = Arc::clone(&failed_bots);
+
+        if stagger_ms > 0 {
+            tokio::time::sleep(Duration::from_millis(stagger_ms)).await;
+        }
 
         let handle = tokio::spawn(async move {
-            if let Err(e) = run_single_bot(id, &target_clone).await {
+            if let Err(e) = run_single_bot(id, &target_clone, act_clone, succ_clone, fail_clone).await {
                 error!(bot_id = id, error = %e, "Bot connection failed");
             }
         });
@@ -59,9 +95,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn run_single_bot(
     id: usize,
     target: &str,
+    active_counter: Arc<AtomicUsize>,
+    success_counter: Arc<AtomicUsize>,
+    fail_counter: Arc<AtomicUsize>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut stream = TcpStream::connect(target).await?;
-    let bot_name = format!("Bot_{:02}", id);
+    let connect_res = TcpStream::connect(target).await;
+    let mut stream = match connect_res {
+        Ok(s) => {
+            let _ = s.set_nodelay(true);
+            s
+        }
+        Err(e) => {
+            fail_counter.fetch_add(1, Ordering::Relaxed);
+            return Err(e.into());
+        }
+    };
+
+    let bot_name = format!("Bot_{:04}", id);
 
     // 1. Handshake (Intent = Login)
     let hs = Handshake {
@@ -70,39 +120,65 @@ async fn run_single_bot(
         server_port: 25565,
         intent: HandshakeIntent::Login,
     };
-    write_raw_packet(&mut stream, 0x00, &hs.encode()).await?;
+    if let Err(e) = write_raw_packet(&mut stream, 0x00, &hs.encode()).await {
+        fail_counter.fetch_add(1, Ordering::Relaxed);
+        return Err(e.into());
+    }
 
     // 2. Login Start
     let start = LoginStart {
         name: bot_name.clone(),
         uuid: id as u128,
     };
-    write_raw_packet(&mut stream, 0x00, &start.encode()).await?;
+    if let Err(e) = write_raw_packet(&mut stream, 0x00, &start.encode()).await {
+        fail_counter.fetch_add(1, Ordering::Relaxed);
+        return Err(e.into());
+    }
 
     // 3. Receive Login Success (0x02)
-    let (success_id, _) = read_raw_packet(&mut stream, 2048).await?;
+    let (success_id, _) = match read_raw_packet(&mut stream, 2048).await {
+        Ok(res) => res,
+        Err(e) => {
+            fail_counter.fetch_add(1, Ordering::Relaxed);
+            return Err(e.into());
+        }
+    };
     if success_id != 0x02 {
+        fail_counter.fetch_add(1, Ordering::Relaxed);
         return Err(format!("Expected 0x02 Login Success, got 0x{success_id:02X}").into());
     }
 
     // 4. Send Login Acknowledged (0x03)
-    write_raw_packet(&mut stream, 0x03, &[]).await?;
+    let _ = write_raw_packet(&mut stream, 0x03, &[]).await;
 
     // 5. Receive Finish Configuration (0x03)
-    let (finish_cfg_id, _) = read_raw_packet(&mut stream, 2048).await?;
+    let (finish_cfg_id, _) = match read_raw_packet(&mut stream, 2048).await {
+        Ok(res) => res,
+        Err(e) => {
+            fail_counter.fetch_add(1, Ordering::Relaxed);
+            return Err(e.into());
+        }
+    };
     if finish_cfg_id != 0x03 {
+        fail_counter.fetch_add(1, Ordering::Relaxed);
         return Err(format!("Expected 0x03 Finish Config, got 0x{finish_cfg_id:02X}").into());
     }
 
     // 6. Send Finish Configuration Acknowledgment (0x03)
-    write_raw_packet(&mut stream, 0x03, &[]).await?;
+    let _ = write_raw_packet(&mut stream, 0x03, &[]).await;
 
     // 7. Receive Login (Play) (50) & Synchronize Position (73)
     let (p1, _) = read_raw_packet(&mut stream, 8192).await?;
     let (p2, _) = read_raw_packet(&mut stream, 8192).await?;
-    info!(bot = %bot_name, p1 = p1, p2 = p2, "Bot entered Zenith virtual holding limbo");
 
-    // 8. Main holding loop: answer keepalives and await Transfer packet (132 in Protocol 777)
+    if id % 250 == 0 || id == 1 {
+        info!(bot = %bot_name, p1 = p1, p2 = p2, "Milestone bot entered Zenith virtual holding limbo");
+    }
+
+    success_counter.fetch_add(1, Ordering::Relaxed);
+    active_counter.fetch_add(1, Ordering::Relaxed);
+
+    // 8. Main holding loop: answer keepalives and hold presence
     loop {
         let (packet_id, payload) = match read_raw_packet(&mut stream, 16384).await {
             Ok(p) => p,
@@ -117,15 +193,13 @@ async fn run_single_bot(
                 }
             }
             132 => {
-                // 132 (0x84) Transfer packet received!
-                info!(bot = %bot_name, ">>> RECEIVED 132 (0x84) TRANSFER PACKET! Transitioning to backend! <<<");
+                // 132 (0x84) Transfer packet received
                 break;
             }
-            _ => {
-                // Ignore display HUD packets (BossBar, Actionbar, Titles, Sound)
-            }
+            _ => {}
         }
     }
 
+    active_counter.fetch_sub(1, Ordering::Relaxed);
     Ok(())
 }

@@ -34,10 +34,18 @@ impl From<std::io::Error> for WireError {
     }
 }
 
-/// Reads a VarInt from a buffer slice.
+/// Reads a VarInt from a buffer slice with a 1-cycle fast path for single-byte values.
 pub fn read_varint(buf: &mut impl Buf) -> Result<i32, WireError> {
-    let mut value = 0;
-    let mut position = 0;
+    if !buf.has_remaining() {
+        return Err(WireError::Underflow);
+    }
+    let first = buf.get_u8();
+    if (first & 0x80) == 0 {
+        return Ok(first as i32);
+    }
+
+    let mut value = (first & 0x7F) as i32;
+    let mut position = 7;
 
     while buf.has_remaining() {
         let current_byte = buf.get_u8();
@@ -56,11 +64,17 @@ pub fn read_varint(buf: &mut impl Buf) -> Result<i32, WireError> {
     Err(WireError::Underflow)
 }
 
-/// Reads a VarInt asynchronously from a stream.
+/// Reads a VarInt asynchronously from a stream with a fast path for single-byte values.
 pub async fn read_varint_async<R: AsyncRead + Unpin>(reader: &mut R) -> Result<i32, WireError> {
-    let mut value = 0;
-    let mut position = 0;
     let mut byte = [0u8; 1];
+    reader.read_exact(&mut byte).await?;
+    let first = byte[0];
+    if (first & 0x80) == 0 {
+        return Ok(first as i32);
+    }
+
+    let mut value = (first & 0x7F) as i32;
+    let mut position = 7;
 
     loop {
         reader.read_exact(&mut byte).await?;
@@ -78,16 +92,20 @@ pub async fn read_varint_async<R: AsyncRead + Unpin>(reader: &mut R) -> Result<i
     }
 }
 
-/// Writes a VarInt into a buffer.
+/// Writes a VarInt into a buffer with a 1-cycle fast path for single-byte values.
 pub fn write_varint(mut value: i32, buf: &mut impl BufMut) {
+    if (value & !0x7F) == 0 {
+        buf.put_u8(value as u8);
+        return;
+    }
+
     loop {
         if (value & !0x7F) == 0 {
             buf.put_u8(value as u8);
             return;
-        } else {
-            buf.put_u8(((value & 0x7F) | 0x80) as u8);
-            value = (value as u32 >> 7) as i32;
         }
+        buf.put_u8(((value & 0x7F) | 0x80) as u8);
+        value = (value as u32 >> 7) as i32;
     }
 }
 

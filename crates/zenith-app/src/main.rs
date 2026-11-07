@@ -242,17 +242,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let nominal_wave_size = q.config().nominal_wave_size.max(1);
             let nominal_interval_ms = q.config().nominal_interval_ms.max(1000);
 
+            let limbo_actionbar = if mode == ZenithMode::Limbo {
+                Some(if !hud_health_rx.borrow().is_available() {
+                    zenith_display::encode_actionbar_packet(
+                        "{\"text\":\"§c§l● §7Serveur cible en redémarrage... §8| §b§lᴢᴇɴɪᴛʜ §7Sas sécurisé\"}",
+                    )
+                } else {
+                    hud_renderer.render_limbo_actionbar()
+                })
+            } else {
+                None
+            };
+
             let mut sessions = hud_sessions.lock().await;
             for (&session_id, (tx, _username, _uuid, last_pos, bb_uuid)) in sessions.iter_mut() {
                 if mode == ZenithMode::Limbo {
-                    let actionbar = if !hud_health_rx.borrow().is_available() {
-                        zenith_display::encode_actionbar_packet(
-                            "{\"text\":\"§c§l● §7Serveur cible en redémarrage... §8| §b§lᴢᴇɴɪᴛʜ §7Sas sécurisé\"}",
-                        )
-                    } else {
-                        hud_renderer.render_limbo_actionbar()
-                    };
-                    let _ = tx.send(SessionCommand::SendRaw(actionbar));
+                    if let Some(ref actionbar) = limbo_actionbar {
+                        let _ = tx.send(SessionCommand::SendRaw(actionbar.clone()));
+                    }
 
                     if *last_pos != total {
                         let (title_pkt, health_pkt) =
@@ -417,6 +424,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let event_tx_clone = event_tx.clone();
 
         tokio::spawn(async move {
+            let _ = socket.set_nodelay(true);
             let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
             let mut session =
                 VirtualSession::with_command_channel(socket, ShieldLimits::default(), cmd_rx);
