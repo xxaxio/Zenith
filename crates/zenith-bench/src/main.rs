@@ -28,6 +28,10 @@ Subcommands:
                   Production mix: 70% Vanilla + 20% Horizon Turbo + 10% Adversaries/Noise.
                   Example: zenith-bench realistic-mix 127.0.0.1:25565 2000 15 300
 
+  phase7          [target] [count] [secs] [concurrency]
+                  Phase 7 ingress: PROXY v2 binary stream, resource pack pre-caching, and broadcast alerts.
+                  Example: zenith-bench phase7 127.0.0.1:25565 1000 15 300
+
 Flags:
   -h, --help      Display this help message
 ";
@@ -127,6 +131,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     session_duration: Duration::from_secs(secs),
                     concurrency_limit: concurrency,
                 },
+            )
+            .await?;
+        }
+        "phase7" | "phase7-ingress" => {
+            let target = args
+                .get(2)
+                .cloned()
+                .unwrap_or_else(|| "127.0.0.1:25565".to_string());
+            let count: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(1000);
+            let secs: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(15);
+            let concurrency: usize = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(300);
+            let (host, port) = parse_host_port(&target);
+            let metrics_url = "127.0.0.1:25580";
+
+            scenarios::run_phase7_bench(
+                &host,
+                port,
+                metrics_url,
+                count,
+                Duration::from_secs(secs),
+                concurrency,
             )
             .await?;
         }

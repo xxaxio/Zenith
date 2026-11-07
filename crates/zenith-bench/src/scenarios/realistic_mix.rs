@@ -73,6 +73,7 @@ pub async fn run_realistic_mix(
             match client.run(&host, port, session_duration).await {
                 Ok(ClientOutcome::HeldInLimbo {
                     keepalives_answered,
+                    ..
                 }) => {
                     lat_cloned.record(run_start.elapsed()).await;
                     live_cloned

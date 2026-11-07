@@ -66,7 +66,11 @@ pub enum ClientOutcome {
     /// Transferred to target backend via 0x7C Transfer packet.
     Transferred { host: String, port: u16 },
     /// Held in virtual limbo void, answering KeepAlives.
-    HeldInLimbo { keepalives_answered: usize },
+    HeldInLimbo {
+        keepalives_answered: usize,
+        resource_packs_loaded: usize,
+        alerts_received: usize,
+    },
     /// Shield triggered and connection was closed/jailed as intended.
     ShieldJailed,
     /// Server closed connection cleanly.
@@ -80,6 +84,7 @@ pub struct SyntheticClient {
     pub uuid: u128,
     pub client_type: ClientType,
     pub proxy: Option<HttpProxy>,
+    pub proxy_v2: Option<zenith_wire::ProxyHeader>,
 }
 
 impl SyntheticClient {
@@ -90,7 +95,13 @@ impl SyntheticClient {
             uuid,
             client_type,
             proxy: None,
+            proxy_v2: None,
         }
+    }
+
+    pub fn with_proxy_v2(mut self, header: zenith_wire::ProxyHeader) -> Self {
+        self.proxy_v2 = Some(header);
+        self
     }
 
     pub fn with_proxy(mut self, proxy: HttpProxy) -> Self {
@@ -137,6 +148,11 @@ impl SyntheticClient {
 
     /// Handshake and Login phases.
     async fn execute_handshake_and_login(&self, stream: &mut TcpStream) -> Result<(), ClientError> {
+        if let Some(ref hdr) = self.proxy_v2 {
+            let proxy_bytes = hdr.encode();
+            stream.write_all(&proxy_bytes).await?;
+            stream.flush().await?;
+        }
         let hs = Handshake {
             protocol_version: PROTOCOL_VERSION,
             server_address: "127.0.0.1".into(),
@@ -230,11 +246,15 @@ impl SyntheticClient {
     ) -> Result<ClientOutcome, ClientError> {
         let start = std::time::Instant::now();
         let mut keepalives_answered = 0;
+        let mut resource_packs_loaded = 0;
+        let mut alerts_received = 0;
 
         loop {
             if start.elapsed() >= max_duration {
                 return Ok(ClientOutcome::HeldInLimbo {
                     keepalives_answered,
+                    resource_packs_loaded,
+                    alerts_received,
                 });
             }
 
@@ -254,6 +274,22 @@ impl SyntheticClient {
                             }
                             write_raw_packet(stream, 28, &payload).await?;
                             keepalives_answered += 1;
+                        }
+                        // Resource Pack Push (Packet ID 82 / 0x52)
+                        82 => {
+                            if let Ok(push) = zenith_wire::ResourcePackPush::decode(&payload) {
+                                let resp = zenith_wire::ResourcePackResponse {
+                                    uuid: push.uuid,
+                                    action: zenith_wire::ResourcePackAction::SuccessfullyLoaded,
+                                };
+                                let body = resp.encode();
+                                write_raw_packet(stream, 44, &body).await?;
+                                resource_packs_loaded += 1;
+                            }
+                        }
+                        // Alerts & Broadcasts: System Chat (116), Disguised (114), Title (117), BossBar (124)
+                        116 | 114 | 117 | 124 => {
+                            alerts_received += 1;
                         }
                         // Transfer packet in Protocol 777 Play state (ID 132 / 0x84)
                         132 => {
@@ -277,6 +313,8 @@ impl SyntheticClient {
                     // Read timeout
                     return Ok(ClientOutcome::HeldInLimbo {
                         keepalives_answered,
+                        resource_packs_loaded,
+                        alerts_received,
                     });
                 }
             }

@@ -54,6 +54,7 @@ pub async fn run_limbo_holding(
             match client.run(&host, port, hold_duration).await {
                 Ok(ClientOutcome::HeldInLimbo {
                     keepalives_answered,
+                    ..
                 }) => {
                     let elapsed = run_start.elapsed();
                     lat_cloned.record(elapsed).await;
