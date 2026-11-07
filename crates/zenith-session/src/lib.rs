@@ -300,7 +300,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         write_varint(0, &mut login_play); // Dimension type ID
         write_string("minecraft:overworld", &mut login_play); // Dimension
         login_play.put_i64(0); // Hashed seed
-        write_varint(1, &mut login_play); // Game mode (VarInt: 1 = Creative)
+        write_varint(3, &mut login_play); // Game mode (VarInt: 3 = Spectator for zero-chunk instant entry)
         write_varint(0, &mut login_play); // Previous game mode (OptVarInt: 0 = None)
         login_play.put_u8(0); // Is debug (Bool)
         login_play.put_u8(1); // Is flat (Bool)
@@ -313,7 +313,19 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
 
         self.shield.write_packet(50, &login_play).await?;
 
-        // 2. Send Synchronize Player Position (Packet ID 0x49 / 73 in 26.3)
+        // 2. Send GameEvent: LEVEL_CHUNKS_LOAD_START (Packet ID 39, Event 13)
+        // Signals client to exit WaitingForServer and dismiss the "Loading terrain..." screen
+        let mut ge = BytesMut::new();
+        ge.put_u8(13); // event: LEVEL_CHUNKS_LOAD_START
+        ge.put_f32(0.0); // param: 0.0
+        self.shield.write_packet(39, &ge).await?;
+
+        // 3. Send ChunkBatchFinished (Packet ID 11, Batch Size 0)
+        let mut cbf = BytesMut::new();
+        write_varint(0, &mut cbf);
+        self.shield.write_packet(11, &cbf).await?;
+
+        // 4. Send Synchronize Player Position (Packet ID 0x49 / 73 in 26.3)
         let mut pos_payload = BytesMut::new();
         write_varint(1, &mut pos_payload); // Teleport ID
         pos_payload.put_f64(0.0); // X

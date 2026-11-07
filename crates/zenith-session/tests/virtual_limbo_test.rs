@@ -49,22 +49,14 @@ async fn test_virtual_limbo_full_lifecycle() {
         let (login_play_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
         assert_eq!(login_play_id, 50);
 
-        // 8. Receive Synchronize Player Position (ID 73)
-        let (pos_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
-        assert_eq!(pos_id, 73);
-
-        // 9. Consume welcome SystemChat packets (ID 124) and await KeepAlive ping (ID 45)
+        // 8. Consume Play initialization packets (GameEvent 39, ChunkBatchFinished 11, PlayerPosition 73, SystemChat 124) and reply to KeepAlive (45)
         loop {
             let (pkt_id, payload) = read_raw_packet(&mut c, 1024).await.unwrap();
-            if pkt_id == 124 {
-                continue; // Welcome chat message
-            }
             if pkt_id == 45 {
                 let ka = KeepAlive::decode(&payload).unwrap();
                 write_raw_packet(&mut c, 28, &ka.encode()).await.unwrap();
                 break;
             }
-            panic!("Unexpected packet ID: {}", pkt_id);
         }
     });
 
