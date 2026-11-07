@@ -53,12 +53,19 @@ async fn test_virtual_limbo_full_lifecycle() {
         let (pos_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
         assert_eq!(pos_id, 73);
 
-        // 9. Receive KeepAlive ping (ID 45) and reply with pong (ID 28)
-        let (ka_id, ka_payload) = read_raw_packet(&mut c, 1024).await.unwrap();
-        assert_eq!(ka_id, 45);
-        let ka = KeepAlive::decode(&ka_payload).unwrap();
-
-        write_raw_packet(&mut c, 28, &ka.encode()).await.unwrap();
+        // 9. Consume welcome SystemChat packets (ID 124) and await KeepAlive ping (ID 45)
+        loop {
+            let (pkt_id, payload) = read_raw_packet(&mut c, 1024).await.unwrap();
+            if pkt_id == 124 {
+                continue; // Welcome chat message
+            }
+            if pkt_id == 45 {
+                let ka = KeepAlive::decode(&payload).unwrap();
+                write_raw_packet(&mut c, 28, &ka.encode()).await.unwrap();
+                break;
+            }
+            panic!("Unexpected packet ID: {}", pkt_id);
+        }
     });
 
     let server_task = tokio::spawn(async move {

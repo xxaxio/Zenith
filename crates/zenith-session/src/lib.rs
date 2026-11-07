@@ -70,6 +70,7 @@ pub struct VirtualSession<S> {
     pub connected_at: Instant,
     pub last_ping: Option<Instant>,
     pub ping_ms: u32,
+    pub target_server: String,
     shield: ShieldedStream<S>,
     pub cmd_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SessionCommand>>,
 }
@@ -90,6 +91,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             connected_at: Instant::now(),
             last_ping: None,
             ping_ms: 0,
+            target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
             cmd_rx: None,
         }
@@ -109,9 +111,24 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             connected_at: Instant::now(),
             last_ping: None,
             ping_ms: 0,
+            target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
             cmd_rx: Some(cmd_rx),
         }
+    }
+
+    /// Configures the backend target server string for manual/automatic transfers.
+    pub fn set_target_server(&mut self, target: String) {
+        self.target_server = target;
+    }
+
+    /// Sends a system chat message (packet ID 124 in Protocol 777) into the player's chat box.
+    pub async fn send_system_chat(&mut self, text: &str) -> Result<(), SessionError> {
+        let mut payload = BytesMut::with_capacity(text.len() + 16);
+        zenith_wire::write_nbt_string(text, &mut payload);
+        payload.put_u8(0); // overlay: false (chat box)
+        self.shield.write_packet(124, &payload).await?; // 124 = SystemChat in 26.3
+        Ok(())
     }
 
     /// Sends raw pre-encoded packet bytes down the shielded connection stream.
@@ -281,16 +298,18 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         login_play.put_u8(0); // Do limited crafting
         // Spawn info:
         write_varint(0, &mut login_play); // Dimension type ID
-        write_string("minecraft:overworld", &mut login_play);
+        write_string("minecraft:overworld", &mut login_play); // Dimension
         login_play.put_i64(0); // Hashed seed
-        login_play.put_u8(1); // Game mode 1 (Creative/fly)
-        login_play.put_i8(-1); // Previous game mode
-        login_play.put_u8(0); // Is debug
-        login_play.put_u8(1); // Is flat
-        login_play.put_u8(0); // Has death location
-        write_varint(0, &mut login_play); // Portal cooldown
-        write_varint(64, &mut login_play); // Sea level
-        login_play.put_u8(0); // Enforces secure chat
+        write_varint(1, &mut login_play); // Game mode (VarInt: 1 = Creative)
+        write_varint(0, &mut login_play); // Previous game mode (OptVarInt: 0 = None)
+        login_play.put_u8(0); // Is debug (Bool)
+        login_play.put_u8(1); // Is flat (Bool)
+        login_play.put_u8(0); // Has death location (Opt<GlobalPos>: 0 = None)
+        write_varint(0, &mut login_play); // Portal cooldown (VarInt)
+        write_varint(64, &mut login_play); // Sea level (VarInt)
+
+        login_play.put_u8(0); // online_mode (Bool)
+        login_play.put_u8(0); // Enforces secure chat (Bool)
 
         self.shield.write_packet(50, &login_play).await?;
 
@@ -309,7 +328,19 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
 
         self.shield.write_packet(73, &pos_payload).await?;
 
-        // 3. Heartbeat loop: maintain session with periodic KeepAlive and handle commands
+        // 3. Welcome banner in chat
+        let user = self.username.clone().unwrap_or_else(|| "Player".into());
+        let _ = self
+            .send_system_chat(&format!(
+                "§b§lZenith §8» §7Welcome §f{} §7to the Virtual Holding Dimension!",
+                user
+            ))
+            .await;
+        let _ = self
+            .send_system_chat("§7Type §e/help §7for commands, or §e/transfer §7to test backend switching.")
+            .await;
+
+        // 4. Heartbeat loop: maintain session with periodic KeepAlive and handle commands
         let mut keepalive_timer = tokio::time::interval(Duration::from_secs(10));
         let mut keepalive_counter: i64 = 1000;
 
@@ -329,7 +360,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                             let mut payload = BytesMut::new();
                             write_string(&host, &mut payload);
                             write_varint(port as i32, &mut payload);
-                            self.shield.write_packet(124, &payload).await?; // 0x7C Transfer
+                            self.shield.write_packet(132, &payload).await?; // 132 = Transfer in Protocol 777 Play state
                             tokio::time::sleep(Duration::from_millis(50)).await;
                             return Ok(());
                         }
@@ -352,6 +383,82 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                     if resp.id == keepalive_counter {
                                         if let Some(sent) = self.last_ping {
                                             self.ping_ms = sent.elapsed().as_millis() as u32;
+                                        }
+                                    }
+                                }
+                            } else if id == 7 || id == 8 || id == 9 {
+                                // 7 = ChatCommand, 8 = ChatCommandSigned, 9 = Chat in Protocol 777
+                                let raw_text = match id {
+                                    7 | 8 => zenith_wire::read_string(&mut &payload[..], 256).ok(),
+                                    9 => {
+                                        if let Ok(msg) = zenith_wire::read_string(&mut &payload[..], 256) {
+                                            let msg = msg.trim();
+                                            Some(msg.strip_prefix('/').unwrap_or(msg).to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    _ => None,
+                                };
+
+                                if let Some(cmd_line) = raw_text {
+                                    let parts: Vec<&str> = cmd_line.split_whitespace().collect();
+                                    let cmd = parts.first().copied().unwrap_or("").to_lowercase();
+                                    match cmd.as_str() {
+                                        "transfer" | "join" | "play" => {
+                                            let target = self.target_server.clone();
+                                            let (host, port) = match target.split_once(':') {
+                                                Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(25565)),
+                                                None => (target.clone(), 25565),
+                                            };
+                                            let _ = self.send_system_chat(&format!("§bZenith §8» §aTransferring you to §e{}:{}§a...", host, port)).await;
+                                            tokio::time::sleep(Duration::from_millis(150)).await;
+                                            let mut payload = BytesMut::new();
+                                            write_string(&host, &mut payload);
+                                            write_varint(port as i32, &mut payload);
+                                            self.shield.write_packet(132, &payload).await?; // 132 = Transfer
+                                            tokio::time::sleep(Duration::from_millis(50)).await;
+                                            return Ok(());
+                                        }
+                                        "ping" => {
+                                            let _ = self.send_system_chat(&format!("§bZenith §8» §7Round-trip latency: §a{}ms", self.ping_ms)).await;
+                                        }
+                                        "spawn" | "tp" => {
+                                            let mut pos_payload = BytesMut::new();
+                                            write_varint(999, &mut pos_payload); // Teleport ID
+                                            pos_payload.put_f64(0.0); // X
+                                            pos_payload.put_f64(64.0); // Y
+                                            pos_payload.put_f64(0.0); // Z
+                                            pos_payload.put_f64(0.0); // Delta X
+                                            pos_payload.put_f64(0.0); // Delta Y
+                                            pos_payload.put_f64(0.0); // Delta Z
+                                            pos_payload.put_f32(0.0); // Yaw
+                                            pos_payload.put_f32(0.0); // Pitch
+                                            pos_payload.put_i32(0); // Relatives
+                                            self.shield.write_packet(73, &pos_payload).await?;
+                                            let _ = self.send_system_chat("§bZenith §8» §7Teleported to spawn coordinates (0, 64, 0).").await;
+                                        }
+                                        "status" | "info" => {
+                                            let uptime_secs = self.connected_at.elapsed().as_secs();
+                                            let user = self.username.as_deref().unwrap_or("Unknown");
+                                            let _ = self.send_system_chat(&format!(
+                                                "§bZenith §8» §7Session: §e#{} §7| Player: §f{} §7| Ping: §a{}ms §7| Limbo Uptime: §e{}s",
+                                                self.id.0, user, self.ping_ms, uptime_secs
+                                            )).await;
+                                        }
+                                        "help" => {
+                                            let _ = self.send_system_chat("§b§l=== Zenith Limbo Commands ===§r").await;
+                                            let _ = self.send_system_chat("§e/transfer §7- Transfer immediately to backend server").await;
+                                            let _ = self.send_system_chat("§e/ping     §7- View your latency").await;
+                                            let _ = self.send_system_chat("§e/spawn    §7- Teleport back to (0, 64, 0)").await;
+                                            let _ = self.send_system_chat("§e/status   §7- View session metrics & uptime").await;
+                                            let _ = self.send_system_chat("§e/help     §7- Show this interactive help menu").await;
+                                        }
+                                        _ => {
+                                            if !cmd_line.is_empty() {
+                                                let user = self.username.as_deref().unwrap_or("Player");
+                                                let _ = self.send_system_chat(&format!("§8[§bLimbo§8] §f{}§8: §7{}", user, cmd_line)).await;
+                                            }
                                         }
                                     }
                                 }

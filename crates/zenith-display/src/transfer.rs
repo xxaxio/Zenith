@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use zenith_wire::{encode_packet, write_string, write_varint};
 
 /// Packet ID for Clientbound Transfer in Protocol 777 Play state.
-pub const PACKET_ID_TRANSFER: i32 = 0x7C;
+pub const PACKET_ID_TRANSFER: i32 = 132;
 
 /// Encodes a Clientbound Transfer packet (`0x7C`).
 ///

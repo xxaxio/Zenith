@@ -54,6 +54,33 @@ impl ChatComponent {
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|_| format!("{{\"text\":\"{}\"}}", self.text))
     }
+
+    /// Serializes the component into Minecraft section-sign (§) formatted legacy text for network NBT.
+    #[must_use]
+    pub fn to_legacy_string(&self) -> String {
+        let mut out = String::new();
+        fn append_comp(c: &ChatComponent, out: &mut String) {
+            if let Some(col) = &c.color {
+                match col.as_str() {
+                    "#00c6ff" | "cyan" | "aqua" => out.push_str("§b"),
+                    "#f9d423" | "yellow" | "gold" => out.push_str("§e"),
+                    "#00ff87" | "green" => out.push_str("§a"),
+                    "#aaaaaa" | "gray" => out.push_str("§7"),
+                    "#555555" | "#777777" | "dark_gray" => out.push_str("§8"),
+                    _ => out.push_str("§f"),
+                }
+            }
+            if c.bold == Some(true) {
+                out.push_str("§l");
+            }
+            out.push_str(&c.text);
+            for sub in &c.extra {
+                append_comp(sub, out);
+            }
+        }
+        append_comp(self, &mut out);
+        out
+    }
 }
 
 /// Builds the formatted BossBar title component according to the display configuration.

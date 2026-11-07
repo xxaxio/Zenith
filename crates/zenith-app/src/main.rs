@@ -8,14 +8,26 @@ use tokio::net::TcpListener;
 use tokio::sync::{Mutex, mpsc};
 use tracing::{debug, error, info};
 use zenith_display::{
-    DisplayConfig, HudRenderer, encode_subtitle_packet, encode_system_chat_packet,
-    encode_title_packet, encode_title_times_packet,
+    BossBarColor, BossBarDivision, DisplayConfig, HudRenderer, encode_actionbar_packet,
+    encode_bossbar_add, encode_bossbar_health, encode_bossbar_title, encode_subtitle_packet,
+    encode_system_chat_packet, encode_title_packet, encode_title_times_packet,
 };
 use zenith_session::{SessionCommand, SessionId, VirtualSession};
 use zenith_shield::ShieldLimits;
 use zenith_transit::{
     QueueEntry, QueuePriority, SortingPolicy, TargetServerHealth, TransitConfig, TransitQueue,
 };
+
+/// Zenith operational modes for testing and production deployment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ZenithMode {
+    /// Infinite virtual holding: players remain in Limbo, explore, chat, and test commands (/transfer, /ping, etc.).
+    Limbo,
+    /// Transit queue: players are held and drained in waves to the target backend server.
+    Queue,
+    /// Stress harness: high-throughput bot load testing.
+    Stress,
+}
 
 type ActiveSessions = Arc<
     Mutex<
@@ -62,13 +74,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(4000);
+    let mode_str = env::var("ZENITH_MODE").unwrap_or_else(|_| "limbo".to_string());
+    let mode = match mode_str.to_lowercase().as_str() {
+        "queue" | "transit" => ZenithMode::Queue,
+        "stress" | "benchmark" => ZenithMode::Stress,
+        _ => ZenithMode::Limbo,
+    };
 
     info!("Starting Zenith v0.1.0 (Protocol 777 / Minecraft 26.3)...");
+    info!("Operating Mode: {:?}", mode);
     info!("Target backend: {}", target_server);
-    info!(
-        "Wave settings: {} players every {}ms",
-        wave_size, wave_interval_ms
-    );
+    if mode == ZenithMode::Queue {
+        info!(
+            "Wave settings: {} players every {}ms",
+            wave_size, wave_interval_ms
+        );
+    } else {
+        info!("Limbo showcase active: auto-transfer disabled. Players stay in limbo; type /transfer to transfer.");
+    }
     info!("Listening for virtual limbo connections on {}", bind_addr);
 
     let transit_config = TransitConfig {
@@ -95,12 +118,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
 
+            let total = q.len();
             let nominal_wave_size = q.config().nominal_wave_size.max(1);
             let nominal_interval_ms = q.config().nominal_interval_ms.max(1000);
 
             let mut sessions = hud_sessions.lock().await;
             for (&session_id, (tx, _username, _uuid, last_pos, bb_uuid)) in sessions.iter_mut() {
-                if let Some((pos, total)) = q.position_of(session_id) {
+                if mode == ZenithMode::Limbo {
+                    let actionbar = encode_actionbar_packet(&format!(
+                        "§7Connected to §bZenith Limbo§7 · §e{} §7online · Type §e/transfer §7or §e/help",
+                        total
+                    ));
+                    let _ = tx.send(SessionCommand::SendRaw(actionbar));
+
+                    if *last_pos != total {
+                        let title = format!(
+                            "§b§lZENITH§8 | §7VIRTUAL HOLDING§8 | §e§lONLINE: #{} §8(Type §e/help§8)",
+                            total
+                        );
+                        let title_pkt = encode_bossbar_title(*bb_uuid, &title);
+                        let health_pkt = encode_bossbar_health(*bb_uuid, 1.0);
+                        let _ = tx.send(SessionCommand::SendRaw(title_pkt));
+                        let _ = tx.send(SessionCommand::SendRaw(health_pkt));
+                        *last_pos = total;
+                    }
+                } else if let Some((pos, total)) = q.position_of(session_id) {
                     let eta_seconds = ((pos as u64).saturating_sub(1) / nominal_wave_size as u64)
                         * (nominal_interval_ms / 1000);
 
@@ -126,70 +168,72 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // 2. Background Wave Drain loop (health-adaptive transfers)
-    let wave_queue = Arc::clone(&queue);
-    let wave_hud = Arc::clone(&hud);
-    let wave_sessions = Arc::clone(&active_sessions);
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_millis(wave_interval_ms));
-        loop {
-            interval.tick().await;
+    // 2. Background Wave Drain loop (health-adaptive transfers - only active in Queue mode)
+    if mode == ZenithMode::Queue {
+        let wave_queue = Arc::clone(&queue);
+        let wave_hud = Arc::clone(&hud);
+        let wave_sessions = Arc::clone(&active_sessions);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(wave_interval_ms));
+            loop {
+                interval.tick().await;
 
-            let drained = {
-                let mut q = wave_queue.lock().await;
-                if q.is_empty() {
-                    continue;
-                }
-                let health = TargetServerHealth::default();
-                q.drain_wave(Instant::now(), &health)
-            };
+                let drained = {
+                    let mut q = wave_queue.lock().await;
+                    if q.is_empty() {
+                        continue;
+                    }
+                    let health = TargetServerHealth::default();
+                    q.drain_wave(Instant::now(), &health)
+                };
 
-            if !drained.is_empty() {
-                info!(
-                    count = drained.len(),
-                    "Draining transit wave towards backend"
-                );
-                let mut sessions = wave_sessions.lock().await;
-                for entry in drained {
-                    if let Some((tx, username, _uuid, _last_pos, bb_uuid)) =
-                        sessions.remove(&entry.session_id)
-                    {
-                        let (host, port) = match entry.target_server.split_once(':') {
-                            Some((h, p)) => (h, p.parse::<u16>().unwrap_or(25565)),
-                            None => (entry.target_server.as_str(), 25565),
-                        };
+                if !drained.is_empty() {
+                    info!(
+                        count = drained.len(),
+                        "Draining transit wave towards backend"
+                    );
+                    let mut sessions = wave_sessions.lock().await;
+                    for entry in drained {
+                        if let Some((tx, username, _uuid, _last_pos, bb_uuid)) =
+                            sessions.remove(&entry.session_id)
+                        {
+                            let (host, port) = match entry.target_server.split_once(':') {
+                                Some((h, p)) => (h, p.parse::<u16>().unwrap_or(25565)),
+                                None => (entry.target_server.as_str(), 25565),
+                            };
 
-                        // Send transfer sound and packet
-                        let (sound_opt, transfer_pkt) = wave_hud.render_transfer(host, port);
-                        if let Some(snd) = sound_opt {
-                            let _ = tx.send(SessionCommand::SendRaw(snd));
+                            // Send transfer sound and packet
+                            let (sound_opt, transfer_pkt) = wave_hud.render_transfer(host, port);
+                            if let Some(snd) = sound_opt {
+                                let _ = tx.send(SessionCommand::SendRaw(snd));
+                            }
+                            let chat_msg = encode_system_chat_packet(
+                                "§6§l[Zenith] §aYour turn has arrived! Transferring to backend...",
+                                false,
+                            );
+                            let _ = tx.send(SessionCommand::SendRaw(chat_msg));
+                            let _ = tx.send(SessionCommand::SendRaw(transfer_pkt));
+
+                            // Clear Bossbar
+                            let remove_bb = wave_hud.render_bossbar_remove(bb_uuid);
+                            let _ = tx.send(SessionCommand::SendRaw(remove_bb));
+
+                            // Instruct session to execute transfer
+                            let _ = tx.send(SessionCommand::Transfer {
+                                host: host.to_string(),
+                                port,
+                            });
+                            info!(
+                                player = %username,
+                                target = %entry.target_server,
+                                "Player transferred successfully"
+                            );
                         }
-                        let chat_msg = encode_system_chat_packet(
-                            "{\"text\":\"§6§l[Zenith] §aYour turn has arrived! Transferring to backend...\"}",
-                            false,
-                        );
-                        let _ = tx.send(SessionCommand::SendRaw(chat_msg));
-                        let _ = tx.send(SessionCommand::SendRaw(transfer_pkt));
-
-                        // Clear Bossbar
-                        let remove_bb = wave_hud.render_bossbar_remove(bb_uuid);
-                        let _ = tx.send(SessionCommand::SendRaw(remove_bb));
-
-                        // Instruct session to execute transfer
-                        let _ = tx.send(SessionCommand::Transfer {
-                            host: host.to_string(),
-                            port,
-                        });
-                        info!(
-                            player = %username,
-                            target = %entry.target_server,
-                            "Player transferred successfully"
-                        );
                     }
                 }
             }
-        }
-    });
+        });
+    }
 
     // 3. Listener accept loop
     let listener = TcpListener::bind(&bind_addr).await?;
@@ -208,6 +252,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
             let mut session =
                 VirtualSession::with_command_channel(socket, ShieldLimits::default(), cmd_rx);
+            session.set_target_server(target_clone.clone());
 
             match session.complete_handshake_and_login().await {
                 Ok(None) => {
@@ -253,13 +298,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
 
                     // Send initial BossBar Add
-                    let add_bb = hud_clone.render_bossbar_add(bb_uuid, pos, total, eta_seconds);
-                    let _ = cmd_tx.send(SessionCommand::SendRaw(add_bb));
+                    if mode == ZenithMode::Limbo {
+                        let add_bb = encode_bossbar_add(
+                            bb_uuid,
+                            &format!(
+                                "§b§lZENITH§8 | §7VIRTUAL HOLDING§8 | §e§lONLINE: #{} §8(Type §e/help§8)",
+                                total
+                            ),
+                            1.0,
+                            BossBarColor::Blue,
+                            BossBarDivision::None,
+                        );
+                        let _ = cmd_tx.send(SessionCommand::SendRaw(add_bb));
+                    } else {
+                        let add_bb = hud_clone.render_bossbar_add(bb_uuid, pos, total, eta_seconds);
+                        let _ = cmd_tx.send(SessionCommand::SendRaw(add_bb));
+                    }
 
                     // Send Welcome Titles
                     let times = encode_title_times_packet(10, 60, 20);
                     let _ = cmd_tx.send(SessionCommand::SendRaw(times));
-                    let sub = encode_subtitle_packet("§7Virtual Limbo & Queue Gatekeeper");
+                    let sub = encode_subtitle_packet(if mode == ZenithMode::Limbo {
+                        "§7Virtual Holding Dimension"
+                    } else {
+                        "§7Virtual Limbo & Queue Gatekeeper"
+                    });
                     let _ = cmd_tx.send(SessionCommand::SendRaw(sub));
                     let title = encode_title_packet("§b§lZENITH");
                     let _ = cmd_tx.send(SessionCommand::SendRaw(title));
@@ -267,7 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Send Welcome Chat
                     let welcome = encode_system_chat_packet(
                         &format!(
-                            "{{\"text\":\"§b§l[Zenith] §7Welcome §f{}§7! You are enqueued at position §e#{}§7 / §e{}§7.\"}}",
+                            "§b§l[Zenith] §7Welcome §f{}§7! Position §e#{}§7 / §e{}§7.",
                             username, pos, total
                         ),
                         false,

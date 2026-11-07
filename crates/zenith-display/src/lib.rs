@@ -62,7 +62,7 @@ impl HudRenderer {
         let progress = calculate_progress(position, total);
         encode_bossbar_add(
             uuid,
-            &title_comp.to_json(),
+            &title_comp.to_legacy_string(),
             progress,
             self.config.active_color,
             self.config.division,
@@ -86,7 +86,7 @@ impl HudRenderer {
             eta_seconds,
         );
         let progress = calculate_progress(position, total);
-        let title_pkt = encode_bossbar_title(uuid, &title_comp.to_json());
+        let title_pkt = encode_bossbar_title(uuid, &title_comp.to_legacy_string());
         let health_pkt = encode_bossbar_health(uuid, progress);
         (title_pkt, health_pkt)
     }
@@ -101,7 +101,7 @@ impl HudRenderer {
     #[must_use]
     pub fn render_actionbar(&self, position: usize, total: usize, eta_seconds: u64) -> Vec<u8> {
         let comp = build_actionbar_component(&self.config, position, total, eta_seconds);
-        encode_actionbar_packet(&comp.to_json())
+        encode_actionbar_packet(&comp.to_legacy_string())
     }
 
     /// Renders a UI click sound packet if sounds are enabled.

@@ -1,26 +1,26 @@
 //! Protocol 777 BossEvent packet encoders (Packet ID 0x0A).
 
 use bytes::{BufMut, BytesMut};
-use zenith_wire::{encode_packet, write_string, write_varint};
+use zenith_wire::{encode_packet, write_nbt_string, write_varint};
 
 use crate::config::{BossBarColor, BossBarDivision};
 
 /// Packet ID for Clientbound BossEvent in Protocol 777 Play state.
-pub const PACKET_ID_BOSS_EVENT: i32 = 0x0A;
+pub const PACKET_ID_BOSS_EVENT: i32 = 9;
 
 /// Encodes an Action 0 (`Add`) BossBar packet.
 #[must_use]
 pub fn encode_bossbar_add(
     uuid: u128,
-    title_json: &str,
+    title: &str,
     health: f32,
     color: BossBarColor,
     division: BossBarDivision,
 ) -> Vec<u8> {
-    let mut payload = BytesMut::with_capacity(64 + title_json.len());
+    let mut payload = BytesMut::with_capacity(64 + title.len());
     payload.put_u128(uuid);
     write_varint(0, &mut payload); // Action 0: Add
-    write_string(title_json, &mut payload);
+    write_nbt_string(title, &mut payload);
     payload.put_f32(health.clamp(0.0, 1.0));
     write_varint(color as i32, &mut payload);
     write_varint(division as i32, &mut payload);
@@ -52,11 +52,11 @@ pub fn encode_bossbar_health(uuid: u128, health: f32) -> Vec<u8> {
 
 /// Encodes an Action 3 (`Update Title`) BossBar packet.
 #[must_use]
-pub fn encode_bossbar_title(uuid: u128, title_json: &str) -> Vec<u8> {
-    let mut payload = BytesMut::with_capacity(32 + title_json.len());
+pub fn encode_bossbar_title(uuid: u128, title: &str) -> Vec<u8> {
+    let mut payload = BytesMut::with_capacity(32 + title.len());
     payload.put_u128(uuid);
     write_varint(3, &mut payload); // Action 3: Update Title
-    write_string(title_json, &mut payload);
+    write_nbt_string(title, &mut payload);
 
     encode_packet(PACKET_ID_BOSS_EVENT, &payload)
 }

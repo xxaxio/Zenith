@@ -1,29 +1,29 @@
 //! Protocol 777 Set Actionbar Text and System Chat packet encoders.
 
 use bytes::BytesMut;
-use zenith_wire::{encode_packet, write_string};
+use zenith_wire::{encode_packet, write_nbt_string};
 
 /// Packet ID for Set Actionbar Text in Protocol 777 Play state.
-pub const PACKET_ID_ACTIONBAR_TEXT: i32 = 0x48;
+pub const PACKET_ID_ACTIONBAR_TEXT: i32 = 89;
 
 /// Packet ID for System Chat Message in Protocol 777 Play state.
-pub const PACKET_ID_SYSTEM_CHAT: i32 = 0x6C;
+pub const PACKET_ID_SYSTEM_CHAT: i32 = 124;
 
-/// Encodes a Set Actionbar Text packet (`0x48`).
+/// Encodes a Set Actionbar Text packet (`89` in 26.3 / Protocol 777).
 #[must_use]
-pub fn encode_actionbar_packet(text_json: &str) -> Vec<u8> {
-    let mut payload = BytesMut::with_capacity(text_json.len() + 8);
-    write_string(text_json, &mut payload);
+pub fn encode_actionbar_packet(text: &str) -> Vec<u8> {
+    let mut payload = BytesMut::with_capacity(text.len() + 8);
+    write_nbt_string(text, &mut payload);
     encode_packet(PACKET_ID_ACTIONBAR_TEXT, &payload)
 }
 
-/// Encodes a System Chat Message packet (`0x6C`).
+/// Encodes a System Chat Message packet (`124` in 26.3 / Protocol 777).
 ///
 /// `overlay` sets whether the message displays in the actionbar slot (true) or chat box (false).
 #[must_use]
-pub fn encode_system_chat_packet(text_json: &str, overlay: bool) -> Vec<u8> {
-    let mut payload = BytesMut::with_capacity(text_json.len() + 8);
-    write_string(text_json, &mut payload);
+pub fn encode_system_chat_packet(text: &str, overlay: bool) -> Vec<u8> {
+    let mut payload = BytesMut::with_capacity(text.len() + 8);
+    write_nbt_string(text, &mut payload);
     payload.extend_from_slice(&[if overlay { 1 } else { 0 }]);
     encode_packet(PACKET_ID_SYSTEM_CHAT, &payload)
 }

@@ -1,33 +1,33 @@
 //! Protocol 777 Title, Subtitle, and Title Times packet encoders.
 
 use bytes::{BufMut, BytesMut};
-use zenith_wire::{encode_packet, write_string};
+use zenith_wire::{encode_packet, write_nbt_string};
 
 /// Packet ID for Set Title Text in Protocol 777 Play state.
-pub const PACKET_ID_SET_TITLE: i32 = 0x67;
+pub const PACKET_ID_SET_TITLE: i32 = 116;
 
 /// Packet ID for Set Subtitle Text in Protocol 777 Play state.
-pub const PACKET_ID_SET_SUBTITLE: i32 = 0x69;
+pub const PACKET_ID_SET_SUBTITLE: i32 = 114;
 
 /// Packet ID for Set Title Animation Times in Protocol 777 Play state.
-pub const PACKET_ID_SET_TITLE_TIMES: i32 = 0x6A;
+pub const PACKET_ID_SET_TITLE_TIMES: i32 = 117;
 
 /// Packet ID for Clear Titles in Protocol 777 Play state.
-pub const PACKET_ID_CLEAR_TITLES: i32 = 0x0D;
+pub const PACKET_ID_CLEAR_TITLES: i32 = 14;
 
-/// Encodes a Set Title Text packet (`0x67`).
+/// Encodes a Set Title Text packet (`116` in 26.3 / Protocol 777).
 #[must_use]
-pub fn encode_title_packet(title_json: &str) -> Vec<u8> {
-    let mut payload = BytesMut::with_capacity(title_json.len() + 8);
-    write_string(title_json, &mut payload);
+pub fn encode_title_packet(title: &str) -> Vec<u8> {
+    let mut payload = BytesMut::with_capacity(title.len() + 8);
+    write_nbt_string(title, &mut payload);
     encode_packet(PACKET_ID_SET_TITLE, &payload)
 }
 
-/// Encodes a Set Subtitle Text packet (`0x69`).
+/// Encodes a Set Subtitle Text packet (`114` in 26.3 / Protocol 777).
 #[must_use]
-pub fn encode_subtitle_packet(subtitle_json: &str) -> Vec<u8> {
-    let mut payload = BytesMut::with_capacity(subtitle_json.len() + 8);
-    write_string(subtitle_json, &mut payload);
+pub fn encode_subtitle_packet(subtitle: &str) -> Vec<u8> {
+    let mut payload = BytesMut::with_capacity(subtitle.len() + 8);
+    write_nbt_string(subtitle, &mut payload);
     encode_packet(PACKET_ID_SET_SUBTITLE, &payload)
 }
 

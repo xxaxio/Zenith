@@ -130,6 +130,13 @@ pub fn write_string(s: &str, buf: &mut impl BufMut) {
     buf.put_slice(s.as_bytes());
 }
 
+/// Writes a standard Minecraft 26.3 / Protocol 777 Network NBT string tag (`TAG_String`).
+pub fn write_nbt_string(s: &str, buf: &mut impl BufMut) {
+    buf.put_u8(8); // TAG_String
+    buf.put_u16(s.len() as u16);
+    buf.put_slice(s.as_bytes());
+}
+
 /// Reads a raw Minecraft frame from an async stream: `[TotalLength: VarInt] [PacketID: VarInt] [Payload]`
 pub async fn read_raw_packet<R: AsyncRead + Unpin>(
     reader: &mut R,
@@ -286,6 +293,7 @@ impl LoginSuccess {
         buf.put_u128(self.uuid);
         write_string(&self.username, &mut buf);
         write_varint(0, &mut buf); // 0 properties
+        buf.put_u128(self.uuid); // Protocol 777 session UUID (16 bytes)
         buf.to_vec()
     }
 }

@@ -4,7 +4,7 @@ use bytes::{BufMut, BytesMut};
 use zenith_wire::{encode_packet, write_string, write_varint};
 
 /// Packet ID for Sound Effect in Protocol 777 Play state.
-pub const PACKET_ID_SOUND_EFFECT: i32 = 0x62;
+pub const PACKET_ID_SOUND_EFFECT: i32 = 119;
 
 /// Sound category enumeration according to vanilla Protocol 777.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
