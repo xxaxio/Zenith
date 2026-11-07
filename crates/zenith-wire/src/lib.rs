@@ -6,6 +6,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 pub use horizon_protocol::PROTOCOL_VERSION;
 
+pub mod hmac;
+pub use hmac::HmacForwarding;
+
 /// Wire protocol errors.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum WireError {

@@ -15,9 +15,11 @@ use zenith_display::{
 };
 use zenith_session::{SessionCommand, SessionEvent, SessionId, VirtualSession};
 use zenith_shield::ShieldLimits;
+use zenith_totem::{BackendHealth, TotemConfig, TotemEvent, TotemLifeline};
 use zenith_transit::{
     GroupManager, QueueEntry, SortingPolicy, TargetServerHealth, TransitConfig, TransitQueue,
 };
+use zenith_wire::HmacForwarding;
 
 /// Zenith operational modes for testing and production deployment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +54,8 @@ struct CommandContext {
     is_queue_active: Arc<AtomicBool>,
     target_server: String,
     hud: Arc<HudRenderer>,
+    health_rx: tokio::sync::watch::Receiver<BackendHealth>,
+    hmac_forwarding: Option<HmacForwarding>,
 }
 
 #[tokio::main]
@@ -121,6 +125,103 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let active_sessions: ActiveSessions = Arc::new(Mutex::new(HashMap::new()));
     let is_queue_active = Arc::new(AtomicBool::new(mode == ZenithMode::Queue));
 
+    let hmac_secret = env::var("ZENITH_HMAC_SECRET").ok();
+    let hmac_forwarding = hmac_secret.map(|s| HmacForwarding::new(s.as_bytes()));
+    if hmac_forwarding.is_some() {
+        info!("HMAC-SHA256 forwarding security token generation enabled");
+    }
+
+    // Totem Lifeline: Active SLP Health Probing & Anti-Crash Evacuation
+    let totem_config = TotemConfig::default();
+    let (totem_lifeline, totem_handles) = TotemLifeline::new(&target_server, totem_config);
+    let mut totem_event_rx = totem_handles.event_rx;
+    let health_rx = totem_handles.health_rx;
+
+    tokio::spawn(totem_lifeline.run());
+
+    let hud_health_rx = health_rx.clone();
+    let wave_health_rx = health_rx.clone();
+    let cmd_health_rx = health_rx.clone();
+
+    // Background Totem Event Broadcaster & Auto-Recovery Lifeline
+    let totem_sessions = Arc::clone(&active_sessions);
+    let totem_queue_active = Arc::clone(&is_queue_active);
+    let totem_queue = Arc::clone(&queue);
+    let totem_mode = mode;
+    tokio::spawn(async move {
+        while let Ok(event) = totem_event_rx.recv().await {
+            match event {
+                TotemEvent::BackendDown {
+                    consecutive_failures,
+                    error,
+                } => {
+                    tracing::warn!(
+                        consecutive_failures,
+                        error = %error,
+                        "Totem detected backend failure - securing limbo"
+                    );
+                    if totem_mode == ZenithMode::Queue {
+                        totem_queue_active.store(false, Ordering::SeqCst);
+                        totem_queue.lock().await.toggle_pause();
+                    }
+
+                    let sessions = totem_sessions.lock().await;
+                    let times = encode_title_times_packet(5, 50, 15);
+                    let sub =
+                        encode_subtitle_packet("§c§lSERVEUR EN PAUSE §7Redémarrage en cours...");
+                    let title = encode_title_packet("§c⚠");
+                    let chat = encode_system_chat_packet(
+                        "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERTE : §7Le serveur cible a crashé ou redémarre. Vous êtes protégés dans le sas !",
+                        false,
+                    );
+
+                    for (s_tx, _, _, _, _) in sessions.values() {
+                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                    }
+                }
+                TotemEvent::BackendRecovered {
+                    latency_ms,
+                    online_players,
+                } => {
+                    info!(
+                        latency_ms,
+                        online_players = ?online_players,
+                        "Totem detected backend recovery - resuming transit"
+                    );
+                    if totem_mode == ZenithMode::Queue {
+                        totem_queue_active.store(true, Ordering::SeqCst);
+                        totem_queue.lock().await.toggle_pause();
+                    }
+
+                    let sessions = totem_sessions.lock().await;
+                    let times = encode_title_times_packet(5, 50, 15);
+                    let sub = encode_subtitle_packet(
+                        "§a§lSERVEUR PRÊT ! §7Transferts automatiques en cours...",
+                    );
+                    let title = encode_title_packet("§a▶");
+                    let chat = encode_system_chat_packet(
+                        &format!(
+                            "§b§lᴢᴇɴɪᴛʜ §8» §a§lSERVEUR EN LIGNE ! §7Ping: §e{}ms§7. Préparez-vous au transfert...",
+                            latency_ms
+                        ),
+                        false,
+                    );
+
+                    for (s_tx, _, _, _, _) in sessions.values() {
+                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
+                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
+                    }
+                }
+                TotemEvent::StatusUpdate { .. } => {}
+            }
+        }
+    });
+
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<SessionEvent>();
 
     // 1. Background HUD refresh loop (every 1 second)
@@ -144,7 +245,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut sessions = hud_sessions.lock().await;
             for (&session_id, (tx, _username, _uuid, last_pos, bb_uuid)) in sessions.iter_mut() {
                 if mode == ZenithMode::Limbo {
-                    let actionbar = hud_renderer.render_limbo_actionbar();
+                    let actionbar = if !hud_health_rx.borrow().is_available() {
+                        zenith_display::encode_actionbar_packet(
+                            "{\"text\":\"§c§l● §7Serveur cible en redémarrage... §8| §b§lᴢᴇɴɪᴛʜ §7Sas sécurisé\"}",
+                        )
+                    } else {
+                        hud_renderer.render_limbo_actionbar()
+                    };
                     let _ = tx.send(SessionCommand::SendRaw(actionbar));
 
                     if *last_pos != total {
@@ -191,7 +298,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             loop {
                 interval.tick().await;
 
-                if !wave_active_flag.load(Ordering::SeqCst) {
+                if !wave_active_flag.load(Ordering::SeqCst)
+                    || !wave_health_rx.borrow().is_available()
+                {
                     continue;
                 }
 
@@ -200,7 +309,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if q.is_empty() {
                         continue;
                     }
-                    let health = TargetServerHealth::default();
+                    let h = wave_health_rx.borrow();
+                    let lat = h.latency_ms().unwrap_or(20) as f64;
+                    let health = TargetServerHealth {
+                        tps: 20.0,
+                        mspt: lat.max(10.0),
+                        is_online: h.is_available(),
+                        is_draining: false,
+                        last_update: Instant::now(),
+                    };
                     q.drain_wave(Instant::now(), &health)
                 };
 
@@ -260,6 +377,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         is_queue_active: Arc::clone(&is_queue_active),
         target_server: target_server.clone(),
         hud: Arc::clone(&hud),
+        health_rx: cmd_health_rx,
+        hmac_forwarding,
     });
 
     let loop_ctx = Arc::clone(&cmd_context);
@@ -394,16 +513,42 @@ async fn handle_command(
     args: &[String],
     ctx: &CommandContext,
 ) {
-    let tx = {
+    let session_data = {
         let s = ctx.sessions.lock().await;
-        s.get(&session_id).map(|(tx, _, _, _, _)| tx.clone())
+        s.get(&session_id)
+            .map(|(tx, _, uuid, _, _)| (tx.clone(), *uuid))
     };
-    let Some(tx) = tx else { return };
+    let Some((tx, player_uuid)) = session_data else {
+        return;
+    };
 
     let is_staff = ctx.group_mgr.lock().await.is_staff(username);
 
     match cmd {
         "transfer" | "join" | "play" => {
+            let current_health = ctx.health_rx.borrow().clone();
+            if !current_health.is_available() {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cLe serveur cible est temporairement indisponible (en cours de redémarrage). Vous êtes en sécurité dans le sas !",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
+            if let Some(ref hmac) = ctx.hmac_forwarding {
+                let now_secs = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let token = hmac.create_transit_token(player_uuid, username, now_secs);
+                tracing::info!(
+                    player = %username,
+                    token = ?token,
+                    "HMAC transit token generated for player transfer"
+                );
+            }
+
             let (host, port) = match ctx.target_server.split_once(':') {
                 Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(25565)),
                 None => (ctx.target_server.clone(), 25565),
@@ -913,6 +1058,46 @@ async fn handle_command(
             let _ = tx.send(SessionCommand::SendRaw(m4));
             let _ = tx.send(SessionCommand::SendRaw(m5));
         }
+        "status" => {
+            let health = ctx.health_rx.borrow().clone();
+            let m1 = encode_system_chat_packet(
+                "§8§m                                                  §r",
+                false,
+            );
+            let m2 = encode_system_chat_packet("§b§l  ᴢᴇɴɪᴛʜ §8» §fÉtat du Serveur Backend", false);
+            let (status_text, ping_text) = match &health {
+                BackendHealth::Healthy { latency_ms } => {
+                    ("§aEn ligne (Optimal)", format!("§a{}ms", latency_ms))
+                }
+                BackendHealth::Degraded { latency_ms, reason } => (
+                    "§eDégradé",
+                    format!("§e{}ms §8(§7{}§8)", latency_ms, reason),
+                ),
+                BackendHealth::Offline {
+                    consecutive_failures,
+                    last_error,
+                } => (
+                    "§cHors-ligne (Sas actif)",
+                    format!("§c{} échecs §8(§7{}§8)", consecutive_failures, last_error),
+                ),
+            };
+            let m3 =
+                encode_system_chat_packet(&format!("§7  Cible: §e{}", ctx.target_server), false);
+            let m4 = encode_system_chat_packet(&format!("§7  Santé: {}", status_text), false);
+            let m5 =
+                encode_system_chat_packet(&format!("§7  Latence / Info: {}", ping_text), false);
+            let m6 = encode_system_chat_packet(
+                "§8§m                                                  §r",
+                false,
+            );
+
+            let _ = tx.send(SessionCommand::SendRaw(m1));
+            let _ = tx.send(SessionCommand::SendRaw(m2));
+            let _ = tx.send(SessionCommand::SendRaw(m3));
+            let _ = tx.send(SessionCommand::SendRaw(m4));
+            let _ = tx.send(SessionCommand::SendRaw(m5));
+            let _ = tx.send(SessionCommand::SendRaw(m6));
+        }
         "ping" => {
             let msg = encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §7Latence réseau: §a~15ms", false);
             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -932,6 +1117,10 @@ async fn handle_command(
                 false,
             );
             let m5 = encode_system_chat_packet(
+                "  §e/status   §8- §7Consulter l'état de santé du serveur backend",
+                false,
+            );
+            let m6 = encode_system_chat_packet(
                 "  §e/ping     §8- §7Afficher votre latence réseau",
                 false,
             );
@@ -940,6 +1129,7 @@ async fn handle_command(
             let _ = tx.send(SessionCommand::SendRaw(m3));
             let _ = tx.send(SessionCommand::SendRaw(m4));
             let _ = tx.send(SessionCommand::SendRaw(m5));
+            let _ = tx.send(SessionCommand::SendRaw(m6));
 
             if is_staff {
                 let m_staff = encode_system_chat_packet(

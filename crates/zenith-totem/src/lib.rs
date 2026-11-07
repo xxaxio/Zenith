@@ -1,37 +1,21 @@
 //! Crash evacuation lifeline, health poller, and automatic backend re-routing.
 
-/// Health state of a monitored backend game server.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BackendHealth {
-    Healthy,
-    Degraded,
-    Offline,
-}
+pub mod health;
+pub mod lifeline;
+pub mod prober;
 
-/// A target backend server monitored for crash recovery.
-#[derive(Debug, Clone)]
-pub struct MonitoredBackend {
-    pub address: String,
-    pub status: BackendHealth,
-}
-
-impl MonitoredBackend {
-    #[must_use]
-    pub fn new(address: impl Into<String>) -> Self {
-        Self {
-            address: address.into(),
-            status: BackendHealth::Offline,
-        }
-    }
-}
+pub use health::{BackendHealth, ProbeReport, TotemConfig};
+pub use lifeline::{LifelineHandles, TotemEvent, TotemLifeline, TotemStateMachine};
+pub use prober::BackendProber;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_backend_status() {
-        let backend = MonitoredBackend::new("127.0.0.1:25566");
-        assert_eq!(backend.status, BackendHealth::Offline);
+    fn test_totem_public_exports() {
+        let config = TotemConfig::default();
+        let (_lifeline, handles) = TotemLifeline::new("127.0.0.1:25566", config);
+        assert!(!handles.health_rx.borrow().is_available());
     }
 }
