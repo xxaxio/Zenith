@@ -15,47 +15,73 @@ pub struct GroupManager {
 impl Default for GroupManager {
     fn default() -> Self {
         let mut owners = HashSet::new();
-        owners.insert("axxio_hc".to_string());
-        owners.insert("yoyo1406".to_string());
+        if let Ok(val) = std::env::var("ZENITH_OWNERS") {
+            for name in val.split(',') {
+                let trimmed = name.trim().to_lowercase();
+                if !trimmed.is_empty() {
+                    owners.insert(trimmed);
+                }
+            }
+        }
 
         let mut staff = HashSet::new();
-        for name in &[
-            "axxio_hc",
-            "yoyo1406",
-            "tino_lino",
-            "khaelys_",
-            "ghostedge92",
-            "alexis1pape",
-            "redsavantmc",
-            "bisounoursl",
-        ] {
-            staff.insert(name.to_string());
+        if let Ok(val) = std::env::var("ZENITH_STAFF") {
+            for name in val.split(',') {
+                let trimmed = name.trim().to_lowercase();
+                if !trimmed.is_empty() {
+                    staff.insert(trimmed);
+                }
+            }
+        }
+
+        let mut vips = HashSet::new();
+        if let Ok(val) = std::env::var("ZENITH_VIPS") {
+            for name in val.split(',') {
+                let trimmed = name.trim().to_lowercase();
+                if !trimmed.is_empty() {
+                    vips.insert(trimmed);
+                }
+            }
         }
 
         Self {
             owners,
             staff,
-            vips: HashSet::new(),
+            vips,
         }
     }
 }
 
 impl GroupManager {
-    /// Creates a new group manager with default owners and staff.
+    /// Creates a new group manager with empty groups or loaded from environment variables.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Checks if any staff or owner exists in the system.
+    #[must_use]
+    pub fn has_any_staff(&self) -> bool {
+        !self.owners.is_empty() || !self.staff.is_empty()
+    }
+
     /// Checks if a player is in the Owners group.
+    /// If no owners are configured yet, allows access for bootstrap setup.
     #[must_use]
     pub fn is_owner(&self, username: &str) -> bool {
+        if self.owners.is_empty() {
+            return true;
+        }
         self.owners.contains(&username.to_lowercase())
     }
 
     /// Checks if a player has Staff privileges (Owner or Staff).
+    /// If no staff or owners are configured yet, allows access for bootstrap setup.
     #[must_use]
     pub fn is_staff(&self, username: &str) -> bool {
+        if !self.has_any_staff() {
+            return true;
+        }
         let lower = username.to_lowercase();
         self.owners.contains(&lower) || self.staff.contains(&lower)
     }
@@ -175,18 +201,22 @@ mod tests {
     #[test]
     fn test_group_manager_defaults() {
         let mgr = GroupManager::default();
-        assert!(mgr.is_owner("axxio_hc"));
-        assert!(mgr.is_owner("AXXIO_HC"));
-        assert!(mgr.is_staff("axxio_hc"));
-        assert!(mgr.is_staff("tino_lino"));
-        assert!(!mgr.is_staff("random_player"));
-        assert_eq!(mgr.priority_of("axxio_hc"), QueuePriority::Staff);
+        // By default, no hardcoded staff or owners from external servers
+        assert!(mgr.owners().is_empty());
+        assert!(mgr.staff_members().is_empty());
+        assert!(mgr.vip_members().is_empty());
         assert_eq!(mgr.priority_of("random_player"), QueuePriority::Standard);
     }
 
     #[test]
     fn test_group_manager_add_remove() {
         let mut mgr = GroupManager::default();
+        mgr.add("owner", "Axxio").unwrap();
+        assert!(mgr.is_owner("axxio"));
+        assert!(mgr.is_staff("axxio"));
+        assert!(!mgr.is_staff("random_player"));
+        assert_eq!(mgr.priority_of("axxio"), QueuePriority::Staff);
+
         mgr.add("vip", "TestPlayer").unwrap();
         assert!(mgr.is_vip("testplayer"));
         assert_eq!(mgr.priority_of("testplayer"), QueuePriority::Vip);
