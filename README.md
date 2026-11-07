@@ -60,6 +60,8 @@ Zenith is engineered for extreme connection density and minimal memory consumpti
 
 ![Zenith Cyber Defense Benchmark](docs/assets/benchmark-cyber-defense.svg)
 
+> **Note on Benchmarks:** *The metrics above reflect empirical validation runs on a local developer workstation (sampled at 1,000 concurrent bot sessions to verify the sub-1KiB actor invariant). They do not represent Zenith's architectural saturation ceiling, which is designed to sustain tens of thousands of concurrent sessions on dedicated Linux bare-metal hosts.*
+
 See [docs/benchmarks.md](docs/benchmarks.md) for detailed methodology, scenario runners, and test logs.
 
 ---

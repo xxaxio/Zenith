@@ -20,6 +20,8 @@ Zenith enforces an architectural invariant: **user-space memory footprint of les
 
 *Note: The measured operating system Working Set RSS includes kernel socket buffers (TCP receive/transmit queues managed by Windows/Linux). The user-space Tokio actor task consumes only a few hundred bytes.*
 
+> ℹ️ **Benchmark Environment & Scope**: *These empirical measurements reflect local validation runs on a single developer workstation (Lenovo Windows 11, Intel Core i5-12450H). The 1,000-session workload validates the mathematical sub-1KiB actor invariant and zero-leak guarantees under continuous KeepAlive cycling. It does **not** represent Zenith's architectural saturation ceiling, which is engineered to scale across tens of thousands of concurrent sessions on dedicated Linux bare-metal infrastructure.*
+
 ---
 
 ## 2. Cyber-Defense & Attack Deflection (`adversary-storm`)

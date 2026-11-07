@@ -1,117 +1,232 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%" role="img" aria-labelledby="zt zd">
+  <title id="zt">Zenith Benchmark: High-Density Memory Profile</title>
+  <desc id="zd">Measured RSS footprint comparison: Zenith 2.58 MiB idle, 9.52 MiB with 500 bots, 9.86 MiB with 1,000 bots, versus legacy JVM servers exceeding 1,200 MiB.</desc>
+
   <defs>
-    <linearGradient id="bgMem" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#080d1a"/>
-      <stop offset="100%" stop-color="#0e172a"/>
-    </linearGradient>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', Consolas, monospace; }
+    </style>
 
-    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080d1a"/>
+      <stop offset="1" stop-color="#0b1329"/>
     </linearGradient>
-
-    <linearGradient id="cyanBar" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0284c7"/>
-      <stop offset="100%" stop-color="#38bdf8"/>
-    </linearGradient>
-
-    <linearGradient id="emeraldBar" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#10b981"/>
-    </linearGradient>
-
-    <linearGradient id="purpleBar" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#7c3aed"/>
-      <stop offset="100%" stop-color="#a855f7"/>
-    </linearGradient>
-
-    <linearGradient id="redBar" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#dc2626"/>
-      <stop offset="100%" stop-color="#f87171"/>
-    </linearGradient>
-
-    <pattern id="gridMem" width="30" height="30" patternUnits="userSpaceOnUse">
-      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.4"/>
+    <radialGradient id="glowA" cx="0.88" cy="0" r="0.55">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.08" cy="1" r="0.55">
+      <stop offset="0" stop-color="#6366f1" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.8" fill="#ffffff" fill-opacity="0.045"/>
     </pattern>
 
+    <linearGradient id="cardFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14203f" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#0c1430" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="cardEdge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="topCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#67e8f9" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="topEmerald" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#6ee7b7" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="topViolet" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#818cf8" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#a5b4fc" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#818cf8" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="gCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0e7490"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="gEmerald" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#047857"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="gViolet" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4338ca"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="gRed" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9f1239"/>
+      <stop offset="1" stop-color="#f43f5e"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.24"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="badgeA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#06b6d4" stop-opacity="0.08"/>
+    </linearGradient>
+    <linearGradient id="badgeAEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34d399" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="badgeB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0ea5e9" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="badgeBEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7dd3fc" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0.25"/>
+    </linearGradient>
+
+    <linearGradient id="tGreenCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6ee7b7"/>
+      <stop offset="1" stop-color="#67e8f9"/>
+    </linearGradient>
+    <linearGradient id="tSky" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#bae6fd"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="tCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a5f3fc"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="tEmerald" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a7f3d0"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="tViolet" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c7d2fe"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+
+    <filter id="glow" x="-30%" y="-120%" width="160%" height="340%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="b"/>
+      <feComponentTransfer in="b" result="b2"><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
     <clipPath id="chart-clip-ref"><path d="M 1711.457 26.3 C 777.001 0.947 124.50 9.70 10174464.0 0.18 Z"/></clipPath>
+    <mask id="breakMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="480">
+      <rect x="0" y="0" width="1000" height="480" fill="#ffffff"/>
+      <polygon points="606,280 618,280 610,312 598,312" fill="#000000"/>
+    </mask>
   </defs>
 
-  <!-- Background Canvas -->
-  <rect width="1000" height="480" rx="14" fill="url(#bgMem)"/>
-  <rect width="1000" height="480" rx="14" fill="url(#gridMem)"/>
-  <rect width="1000" height="480" rx="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+  <rect width="1000" height="480" rx="16" fill="url(#bg)"/>
+  <rect width="1000" height="480" rx="16" fill="url(#dots)"/>
+  <rect width="1000" height="480" rx="16" fill="url(#glowA)"/>
+  <rect width="1000" height="480" rx="16" fill="url(#glowB)"/>
+  <rect x="0.5" y="0.5" width="999" height="479" rx="15.5" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
 
   <!-- Header -->
-  <text x="50" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="800" fill="#f8fafc" letter-spacing="0.5">ZENITH BENCHMARK: HIGH-DENSITY MEMORY PROFILE</text>
-  <text x="50" y="67" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b">MEASURED PROCESS RSS MEMORY &amp; SUB-1KiB PER-SESSION INVARIANT</text>
+  <text x="40" y="52" class="sans" font-size="16" font-weight="700" letter-spacing="0.6" fill="#f1f5f9">ZENITH BENCHMARK: HIGH-DENSITY MEMORY PROFILE</text>
+  <text x="40" y="74" class="sans" font-size="10.5" font-weight="500" letter-spacing="1.1" fill="#6b7a99">MEASURED PROCESS RSS MEMORY &amp; SUB-1KiB PER-SESSION INVARIANT</text>
 
-  <!-- Metric Badges Top Right -->
-  <g transform="translate(640, 25)">
-    <rect width="150" height="52" rx="8" fill="url(#cardGrad)" stroke="#10b981" stroke-width="1.2"/>
-    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#10b981">HOLDING CAPACITY</text>
-    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="17" font-weight="800" fill="#ffffff">1,000 Bots</text>
+  <!-- Top Right Badges -->
+  <rect x="612" y="30" width="176" height="56" rx="12" fill="url(#badgeA)" stroke="url(#badgeAEdge)" stroke-width="1"/>
+  <text x="628" y="52" class="sans" font-size="9" font-weight="600" letter-spacing="1.4" fill="#6ee7c1">TESTED LOAD</text>
+  <text x="628" y="75" class="mono" font-size="20" font-weight="700" fill="url(#tGreenCyan)">1,000 Bots</text>
+
+  <rect x="800" y="30" width="160" height="56" rx="12" fill="url(#badgeB)" stroke="url(#badgeBEdge)" stroke-width="1"/>
+  <text x="816" y="52" class="sans" font-size="9" font-weight="600" letter-spacing="1.4" fill="#7dc8f5">MEASURED RSS</text>
+  <text x="816" y="75" class="mono" font-size="20" font-weight="700" fill="url(#tSky)">9.86 MiB</text>
+
+  <!-- Central Card -->
+  <rect x="40" y="104" width="920" height="244" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)" stroke-width="1"/>
+  <rect x="80" y="104" width="840" height="1" fill="url(#topCyan)"/>
+
+  <text x="64" y="130" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">RESIDENT SET SIZE (RSS) · MiB</text>
+  <text x="936" y="130" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#5eead4" text-anchor="end">LOWER IS BETTER</text>
+
+  <rect x="64" y="189" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
+  <rect x="64" y="231" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
+  <rect x="64" y="273" width="872" height="1" fill="#ffffff" fill-opacity="0.08"/>
+
+  <!-- 10 MiB Threshold -->
+  <text x="596" y="143" class="mono" font-size="9" font-weight="600" letter-spacing="0.8" fill="#94a3b8" text-anchor="middle">10 MiB</text>
+  <line x1="596" y1="148" x2="596" y2="270" stroke="#94a3b8" stroke-opacity="0.55" stroke-width="1" stroke-dasharray="3 4"/>
+
+  <!-- Row 1: Zenith idle -->
+  <circle cx="68" cy="162" r="4" fill="#22d3ee"/>
+  <text x="82" y="166" class="sans" font-size="13" font-weight="600" fill="#e2e8f0">Zenith (Idle / 0 Sessions)</text>
+  <text x="82" y="182" class="sans" font-size="10" fill="#7c8aa5">Baseline async runtime footprint</text>
+  <rect x="376" y="160" width="560" height="20" rx="6" fill="#ffffff" fill-opacity="0.04"/>
+  <rect x="376" y="160" width="57" height="20" rx="6" fill="url(#gCyan)" filter="url(#glow)"/>
+  <rect x="376" y="160" width="57" height="20" rx="6" fill="url(#sheen)"/>
+  <text x="451" y="175" class="mono" font-size="14" font-weight="700" fill="#e6fbff">2.58<tspan font-size="11" font-weight="500" fill="#7aa7b5" dx="4">MiB</tspan></text>
+
+  <!-- Row 2: Zenith 500 -->
+  <circle cx="68" cy="204" r="4" fill="#34d399"/>
+  <text x="82" y="208" class="sans" font-size="13" font-weight="600" fill="#e2e8f0">Zenith (500 Active Bots)</text>
+  <text x="82" y="224" class="sans" font-size="10" fill="#7c8aa5">Holding in zero-chunk limbo void (1,500 KeepAlives)</text>
+  <rect x="376" y="202" width="560" height="20" rx="6" fill="#ffffff" fill-opacity="0.04"/>
+  <rect x="376" y="202" width="209" height="20" rx="6" fill="url(#gEmerald)" filter="url(#glow)"/>
+  <rect x="376" y="202" width="209" height="20" rx="6" fill="url(#sheen)"/>
+  <text x="603" y="217" class="mono" font-size="14" font-weight="700" fill="#e9fff6">9.52<tspan font-size="11" font-weight="500" fill="#7bb8a2" dx="4">MiB</tspan></text>
+
+  <!-- Row 3: Zenith 1000 -->
+  <circle cx="68" cy="246" r="4" fill="#818cf8"/>
+  <text x="82" y="250" class="sans" font-size="13" font-weight="600" fill="#e2e8f0">Zenith (1,000 Active Bots)</text>
+  <text x="82" y="266" class="sans" font-size="10" fill="#7c8aa5">&lt; 1 KiB/session user-space actor invariant verified</text>
+  <rect x="376" y="244" width="560" height="20" rx="6" fill="#ffffff" fill-opacity="0.04"/>
+  <rect x="376" y="244" width="217" height="20" rx="6" fill="url(#gViolet)" filter="url(#glow)"/>
+  <rect x="376" y="244" width="217" height="20" rx="6" fill="url(#sheen)"/>
+  <text x="611" y="259" class="mono" font-size="14" font-weight="700" fill="#f0f0ff">9.86<tspan font-size="11" font-weight="500" fill="#9aa0d6" dx="4">MiB</tspan></text>
+
+  <!-- Row 4: Legacy Java -->
+  <circle cx="68" cy="296" r="4" fill="#f43f5e"/>
+  <text x="82" y="300" class="sans" font-size="13" font-weight="600" fill="#e2e8f0">Legacy Java Server (Paper/Limbo)</text>
+  <rect x="376" y="286" width="560" height="20" rx="6" fill="#ffffff" fill-opacity="0.04"/>
+  <g mask="url(#breakMask)">
+    <rect x="376" y="286" width="420" height="20" rx="6" fill="url(#gRed)" filter="url(#glow)"/>
+    <rect x="376" y="286" width="420" height="20" rx="6" fill="url(#sheen)"/>
   </g>
-  <g transform="translate(805, 25)">
-    <rect width="145" height="52" rx="8" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.2"/>
-    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#38bdf8">MEASURED RSS</text>
-    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="17" font-weight="800" fill="#ffffff">9.86 MiB</text>
-  </g>
+  <line x1="606" y1="280" x2="598" y2="312" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1"/>
+  <line x1="618" y1="280" x2="610" y2="312" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1"/>
+  <text x="814" y="301" class="mono" font-size="14" font-weight="700" fill="#fecdd3">&gt; 1,200<tspan font-size="11" font-weight="500" fill="#d08a96" dx="4">MiB</tspan></text>
 
-  <!-- Chart Area -->
-  <g transform="translate(50, 110)">
-    <!-- Card Container -->
-    <rect width="900" height="230" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-
-    <!-- Axis Labels & Bars -->
-    <!-- Row 1: Idle -->
-    <text x="25" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (Idle / 0 Sessions)</text>
-    <rect x="255" y="33" width="28" height="20" rx="5" fill="url(#cyanBar)"/>
-    <text x="295" y="48" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#38bdf8">2.58 MiB</text>
-    <text x="465" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11.5" fill="#64748b">Baseline async runtime footprint</text>
-
-    <!-- Row 2: 500 Bots -->
-    <text x="25" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (500 Active Bots)</text>
-    <rect x="255" y="83" width="98" height="20" rx="5" fill="url(#emeraldBar)"/>
-    <text x="365" y="98" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#10b981">9.52 MiB</text>
-    <text x="465" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11.5" fill="#64748b">Holding in zero-chunk limbo void (1,500 KeepAlives)</text>
-
-    <!-- Row 3: 1,000 Bots -->
-    <text x="25" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Zenith (1,000 Active Bots)</text>
-    <rect x="255" y="133" width="102" height="20" rx="5" fill="url(#purpleBar)"/>
-    <text x="370" y="148" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#c084fc">9.86 MiB</text>
-    <text x="465" y="148" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11.5" fill="#64748b">&lt; 1 KiB/session user-space actor invariant verified</text>
-
-    <!-- Legacy Server Comparison -->
-    <text x="25" y="198" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#94a3b8">Legacy Java Server (Paper/Limbo)</text>
-    <rect x="255" y="183" width="530" height="20" rx="5" fill="url(#redBar)" opacity="0.85"/>
-    <text x="798" y="198" font-family="'JetBrains Mono', Consolas, monospace" font-size="13" font-weight="800" fill="#f87171">&gt; 1,200 MiB</text>
-  </g>
+  <text x="64" y="334" class="sans" font-size="10" fill="#5f6d8a">Zenith bars share one linear scale · Local workstation validation (not architectural ceiling) · Truncated Java axis (&gt;1,200 MiB)</text>
 
   <!-- Bottom Stat Cards -->
-  <g transform="translate(50, 360)">
-    <!-- Card 1 -->
-    <g transform="translate(0, 0)">
-      <rect width="280" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <text x="18" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#38bdf8">KEEPALIVE ROUND-TRIP</text>
-      <text x="18" y="55" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#f8fafc">3.48 ms</text>
-      <text x="18" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Average latency at 1,000 bots</text>
-    </g>
+  <!-- Card 1 -->
+  <rect x="40" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)" stroke-width="1"/>
+  <rect x="70" y="364" width="236" height="1" fill="url(#topCyan)"/>
+  <text x="62" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">KEEPALIVE ROUND-TRIP</text>
+  <text x="62" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tCyan)">3.48<tspan font-size="14" font-weight="500" dx="6" fill="#67c7d9">ms</tspan></text>
+  <text x="62" y="446" class="sans" font-size="11" fill="#7c8aa5">Average latency at 1,000 bots</text>
+  <g transform="translate(302 396)">
+    <circle r="14" fill="#22d3ee" fill-opacity="0.10" stroke="#22d3ee" stroke-opacity="0.40"/>
+    <circle r="6" fill="none" stroke="#67e8f9" stroke-width="1.6"/>
+    <path d="M0 -3 V0 L2.8 1.6" fill="none" stroke="#67e8f9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 
-    <!-- Card 2 -->
-    <g transform="translate(310, 0)">
-      <rect width="280" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <text x="18" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#10b981">PACKET LOSS / DROPS</text>
-      <text x="18" y="55" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#10b981">0.00%</text>
-      <text x="18" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">2,967 / 2,967 heartbeats confirmed</text>
-    </g>
+  <!-- Card 2 -->
+  <rect x="352" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)" stroke-width="1"/>
+  <rect x="382" y="364" width="236" height="1" fill="url(#topEmerald)"/>
+  <text x="374" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">PACKET LOSS / DROPS</text>
+  <text x="374" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tEmerald)">0.00%</text>
+  <text x="374" y="446" class="sans" font-size="11" fill="#7c8aa5">2,967 / 2,967 heartbeats confirmed</text>
+  <g transform="translate(614 396)">
+    <circle r="14" fill="#34d399" fill-opacity="0.10" stroke="#34d399" stroke-opacity="0.40"/>
+    <path d="M-4.5 0.5 L-1.2 3.8 L4.8 -3.2" fill="none" stroke="#6ee7b7" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 
-    <!-- Card 3 -->
-    <g transform="translate(620, 0)">
-      <rect width="280" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <text x="18" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#c084fc">RAM EFFICIENCY GAIN</text>
-      <text x="18" y="55" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#c084fc">120x Less RAM</text>
-      <text x="18" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Compared to JVM-based void servers</text>
-    </g>
+  <!-- Card 3 -->
+  <rect x="664" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)" stroke-width="1"/>
+  <rect x="694" y="364" width="236" height="1" fill="url(#topViolet)"/>
+  <text x="686" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">RAM EFFICIENCY GAIN</text>
+  <text x="686" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tViolet)">120x<tspan font-size="14" font-weight="500" dx="8" fill="#a5a9e8">Less RAM</tspan></text>
+  <text x="686" y="446" class="sans" font-size="11" fill="#7c8aa5">Compared to JVM-based void servers</text>
+  <g transform="translate(926 396)">
+    <circle r="14" fill="#818cf8" fill-opacity="0.10" stroke="#818cf8" stroke-opacity="0.40"/>
+    <path d="M0 -4.5 V4.5 M-3.8 0.8 L0 4.6 L3.8 0.8" fill="none" stroke="#a5b4fc" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 </svg>

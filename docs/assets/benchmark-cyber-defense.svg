@@ -1,120 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%" role="img" aria-labelledby="zt zd">
+  <title id="zt">Zenith Benchmark: Cyber-Defense &amp; Shield</title>
+  <desc id="zd">Empirical cyber-defense benchmark: 100% deflection rate across 400+ synthetic attacks (Slowloris, jumbo frames, token-bucket bursts, automated botnets). Zero crashes, zero false positives.</desc>
+
   <defs>
-    <linearGradient id="bgDef" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#080d1a"/>
-      <stop offset="100%" stop-color="#0e172a"/>
-    </linearGradient>
-
-    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
-    </linearGradient>
-
-    <linearGradient id="greenMeter" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#10b981"/>
-    </linearGradient>
-
-    <pattern id="gridDef" width="30" height="30" patternUnits="userSpaceOnUse">
-      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.4"/>
-    </pattern>
-
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', Consolas, monospace; }
+    </style>
     <clipPath id="shield-clip-ref"><path d="M 1711.457 26.3 C 777.001 0.947 124.50 9.70 10174464.0 0.18 Z"/></clipPath>
+
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#080d1a"/><stop offset="1" stop-color="#0b1329"/></linearGradient>
+    <radialGradient id="glowA" cx="0.88" cy="0" r="0.55"><stop offset="0" stop-color="#22d3ee" stop-opacity="0.13"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowB" cx="0.08" cy="1" r="0.55"><stop offset="0" stop-color="#10b981" stop-opacity="0.14"/><stop offset="1" stop-color="#10b981" stop-opacity="0"/></radialGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#ffffff" fill-opacity="0.045"/></pattern>
+
+    <linearGradient id="cardFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14203f" stop-opacity="0.88"/><stop offset="1" stop-color="#0c1430" stop-opacity="0.92"/></linearGradient>
+    <linearGradient id="cardEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.05"/></linearGradient>
+    <linearGradient id="topCyan" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22d3ee" stop-opacity="0"/><stop offset="0.5" stop-color="#67e8f9" stop-opacity="0.85"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient>
+    <linearGradient id="topSky" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8" stop-opacity="0"/><stop offset="0.5" stop-color="#7dd3fc" stop-opacity="0.85"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient>
+    <linearGradient id="topGreen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#34d399" stop-opacity="0"/><stop offset="0.5" stop-color="#6ee7b7" stop-opacity="0.85"/><stop offset="1" stop-color="#34d399" stop-opacity="0"/></linearGradient>
+
+    <linearGradient id="badgeA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10b981" stop-opacity="0.18"/><stop offset="1" stop-color="#06b6d4" stop-opacity="0.08"/></linearGradient>
+    <linearGradient id="badgeAEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399" stop-opacity="0.75"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0.25"/></linearGradient>
+    <linearGradient id="badgeB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06b6d4" stop-opacity="0.18"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0.06"/></linearGradient>
+    <linearGradient id="badgeBEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9" stop-opacity="0.75"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0.25"/></linearGradient>
+
+    <linearGradient id="tGreen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a7f3d0"/><stop offset="1" stop-color="#34d399"/></linearGradient>
+    <linearGradient id="tCyan" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a5f3fc"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+    <linearGradient id="tSky" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#bae6fd"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
   </defs>
 
-  <!-- Background Canvas -->
-  <rect width="1000" height="480" rx="14" fill="url(#bgDef)"/>
-  <rect width="1000" height="480" rx="14" fill="url(#gridDef)"/>
-  <rect width="1000" height="480" rx="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+  <rect width="1000" height="480" rx="16" fill="url(#bg)"/>
+  <rect width="1000" height="480" rx="16" fill="url(#dots)"/>
+  <rect width="1000" height="480" rx="16" fill="url(#glowA)"/>
+  <rect width="1000" height="480" rx="16" fill="url(#glowB)"/>
+  <rect x="0.5" y="0.5" width="999" height="479" rx="15.5" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
 
   <!-- Header -->
-  <text x="50" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16.5" font-weight="800" fill="#f8fafc" letter-spacing="0.5">ZENITH BENCHMARK: CYBER-DEFENSE &amp; SHIELD</text>
-  <text x="50" y="66" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" fill="#64748b">100% DEFLECTION RATE AGAINST DISTRIBUTED &amp; LOCAL ASSAULTS (400+ ATTACKS)</text>
+  <text x="40" y="52" class="sans" font-size="16" font-weight="700" letter-spacing="0.6" fill="#f1f5f9">ZENITH BENCHMARK: CYBER-DEFENSE &amp; SHIELD</text>
+  <text x="40" y="74" class="sans" font-size="10" font-weight="500" letter-spacing="0.7" fill="#6b7a99">100% DEFLECTION RATE AGAINST DISTRIBUTED &amp; LOCAL ASSAULTS (400+ ATTACKS)</text>
 
-  <!-- Metric Badges Top Right -->
-  <g transform="translate(630, 25)">
-    <rect width="165" height="52" rx="8" fill="url(#cardGrad)" stroke="#10b981" stroke-width="1.2"/>
-    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#10b981">DEFENSE RATE</text>
-    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="16" font-weight="800" fill="#10b981">100.0% Deflected</text>
-  </g>
-  <g transform="translate(810, 25)">
-    <rect width="140" height="52" rx="8" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.2"/>
-    <text x="14" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="#38bdf8">SERVER CRASHES</text>
-    <text x="14" y="42" font-family="'JetBrains Mono', Consolas, monospace" font-size="16" font-weight="800" fill="#ffffff">0 (Rock Solid)</text>
-  </g>
+  <!-- Badges -->
+  <rect x="596" y="30" width="192" height="56" rx="12" fill="url(#badgeA)" stroke="url(#badgeAEdge)"/>
+  <text x="612" y="52" class="sans" font-size="9" font-weight="600" letter-spacing="1.4" fill="#6ee7c1">DEFENSE RATE</text>
+  <text x="612" y="75" class="mono" font-size="20" font-weight="700" fill="url(#tGreen)">100.0%<tspan font-size="11" font-weight="500" fill="#7bc9a8" dx="6">Deflected</tspan></text>
 
-  <!-- Attack Vectors Grid -->
-  <g transform="translate(50, 105)">
-    <!-- Row 1: Slowloris TCP -->
-    <g transform="translate(0, 0)">
-      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <circle cx="28" cy="35" r="14" fill="#0284c7" opacity="0.2"/>
-      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#38bdf8">🛡</text>
-      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Slowloris Byte Dribble</text>
-      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Anti-stall 15s deadline timeout guard</text>
-      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
-    </g>
+  <rect x="800" y="30" width="160" height="56" rx="12" fill="url(#badgeB)" stroke="url(#badgeBEdge)"/>
+  <text x="816" y="52" class="sans" font-size="9" font-weight="600" letter-spacing="1.4" fill="#6fd8ea">SERVER CRASHES</text>
+  <text x="816" y="75" class="mono" font-size="20" font-weight="700" fill="url(#tCyan)">0<tspan font-size="11" font-weight="500" fill="#6fb9c7" dx="6">(Rock Solid)</tspan></text>
 
-    <!-- Row 1 Right: Jumbo Frame Overflow -->
-    <g transform="translate(465, 0)">
-      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <circle cx="28" cy="35" r="14" fill="#059669" opacity="0.2"/>
-      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#10b981">🛡</text>
-      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Jumbo Frames (> 2 MiB / 32 KiB)</text>
-      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Payload bound enforcement without panic</text>
-      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
-    </g>
+  <!-- Central Card -->
+  <rect x="40" y="104" width="920" height="244" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
+  <rect x="80" y="104" width="840" height="1" fill="url(#topGreen)"/>
+  <text x="64" y="130" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">MITIGATED ATTACK VECTORS</text>
+  <text x="936" y="130" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#5eead4" text-anchor="end">100% DEFLECTION RATE</text>
 
-    <!-- Row 2: Malformed VarInt Injection -->
-    <g transform="translate(0, 85)">
-      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <circle cx="28" cy="35" r="14" fill="#7c3aed" opacity="0.2"/>
-      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#c084fc">🛡</text>
-      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Malformed VarInts (6+ Bytes)</text>
-      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">Strict VarIntTooWide error boundary</text>
-      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
-    </g>
+  <rect x="64" y="191" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
+  <rect x="64" y="239" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
+  <rect x="64" y="287" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
 
-    <!-- Row 2 Right: Token Burst Flood -->
-    <g transform="translate(465, 85)">
-      <rect width="435" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <circle cx="28" cy="35" r="14" fill="#f59e0b" opacity="0.2"/>
-      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#f59e0b">🛡</text>
-      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Token Bucket Burst Flood</text>
-      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">CIDR /24 &amp; /64 subnet aggregation</text>
-      <text x="340" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
-    </g>
+  <!-- Vector 1 -->
+  <circle cx="68" cy="160" r="4" fill="#22d3ee"/>
+  <text x="82" y="164" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Slowloris Byte Dribble</text>
+  <text x="82" y="181" class="sans" font-size="11" fill="#8493b0">Anti-stall 15s deadline timeout guard</text>
+  <rect x="440" y="157" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
+  <circle cx="456" cy="169" r="3.5" fill="#34d399"/>
+  <text x="468" y="172.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">DEFLECTED</text>
 
-    <!-- Row 3 Full: Distributed HTTP CONNECT Proxies -->
-    <g transform="translate(0, 170)">
-      <rect width="900" height="70" rx="8" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <circle cx="28" cy="35" r="14" fill="#38bdf8" opacity="0.2"/>
-      <text x="22" y="40" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#38bdf8">🛡</text>
-      <text x="54" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#f8fafc">Distributed Proxy Botnet Rotation (140 External Proxies Tested)</text>
-      <text x="54" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#94a3b8">100/100 multi-proxy attacks cleanly filtered &amp; dropped without daemon degradation</text>
-      <text x="800" y="38" font-family="'JetBrains Mono', Consolas, monospace" font-size="12" font-weight="800" fill="#10b981">DEFLECTED</text>
-    </g>
-  </g>
+  <!-- Vector 2 -->
+  <circle cx="68" cy="208" r="4" fill="#38bdf8"/>
+  <text x="82" y="212" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Jumbo Frame Overflow</text>
+  <text x="82" y="229" class="sans" font-size="11" fill="#8493b0">Strict 32 KiB pre-play / 2 MiB play frame envelope</text>
+  <rect x="440" y="205" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
+  <circle cx="456" cy="217" r="3.5" fill="#34d399"/>
+  <text x="468" y="220.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">BLOCKED</text>
 
-  <!-- Bottom Stat Cards -->
-  <g transform="translate(50, 365)">
-    <g transform="translate(0, 0)">
-      <rect width="280" height="85" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <text x="18" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#38bdf8">TOTAL ATTACKS DEFLECTED</text>
-      <text x="18" y="52" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#f8fafc">400 / 400</text>
-      <text x="18" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">100 distributed + 300 direct bursts</text>
-    </g>
-    <g transform="translate(310, 0)">
-      <rect width="280" height="85" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <text x="18" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#10b981">PROMETHEUS REJECTIONS</text>
-      <text x="18" y="52" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#10b981">433 Blocked</text>
-      <text x="18" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">Recorded via :25580 /metrics</text>
-    </g>
-    <g transform="translate(620, 0)">
-      <rect width="280" height="85" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.2"/>
-      <text x="18" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="700" fill="#c084fc">SOCKET LEAK COUNT</text>
-      <text x="18" y="52" font-family="'JetBrains Mono', Consolas, monospace" font-size="22" font-weight="800" fill="#c084fc">0 Leaks</text>
-      <text x="18" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b">RAII ConnectionGuard cleanup</text>
-    </g>
-  </g>
+  <!-- Vector 3 -->
+  <circle cx="68" cy="256" r="4" fill="#34d399"/>
+  <text x="82" y="260" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Token-Bucket Ingress Flood</text>
+  <text x="82" y="277" class="sans" font-size="11" fill="#8493b0">Per-IP (2.0/s) &amp; Subnet /24 CIDR rate limiting</text>
+  <rect x="440" y="253" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
+  <circle cx="456" cy="265" r="3.5" fill="#34d399"/>
+  <text x="468" y="268.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">THROTTLED</text>
+
+  <!-- Vector 4 -->
+  <circle cx="68" cy="304" r="4" fill="#818cf8"/>
+  <text x="82" y="308" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Automated Bot Quarantine</text>
+  <text x="82" y="325" class="sans" font-size="11" fill="#8493b0">Automatic temporary IP jailing after threshold</text>
+  <rect x="440" y="301" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
+  <circle cx="456" cy="313" r="3.5" fill="#34d399"/>
+  <text x="468" y="316.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">JAILED</text>
+
+  <!-- Metrics -->
+  <rect x="40" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
+  <rect x="70" y="364" width="236" height="1" fill="url(#topCyan)"/>
+  <text x="62" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">ATTACK RUNS TESTED</text>
+  <text x="62" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tCyan)">400+</text>
+  <text x="62" y="446" class="sans" font-size="11" fill="#7c8aa5">Multi-scenario stress harness</text>
+  <g transform="translate(302 396)"><circle r="14" fill="#22d3ee" fill-opacity="0.10" stroke="#22d3ee" stroke-opacity="0.40"/><circle r="5.5" fill="none" stroke="#67e8f9" stroke-width="1.5"/><circle r="1.4" fill="#67e8f9"/><path d="M0 -9 V-6.5 M0 6.5 V9 M-9 0 H-6.5 M6.5 0 H9" stroke="#67e8f9" stroke-width="1.5" stroke-linecap="round"/></g>
+
+  <rect x="352" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
+  <rect x="382" y="364" width="236" height="1" fill="url(#topGreen)"/>
+  <text x="374" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">ZERO-WINDOW STALLS</text>
+  <text x="374" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tGreen)">0</text>
+  <text x="374" y="446" class="sans" font-size="11" fill="#7c8aa5">5s bounded write timeouts</text>
+  <g transform="translate(614 396)"><circle r="14" fill="#34d399" fill-opacity="0.10" stroke="#34d399" stroke-opacity="0.40"/><circle r="6.5" fill="none" stroke="#6ee7b7" stroke-width="1.5"/><path d="M-2 -3 V3 M2 -3 V3" stroke="#6ee7b7" stroke-width="1.6" stroke-linecap="round"/></g>
+
+  <rect x="664" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
+  <rect x="694" y="364" width="236" height="1" fill="url(#topSky)"/>
+  <text x="686" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">FALSE POSITIVES</text>
+  <text x="686" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tSky)">0.0%</text>
+  <text x="686" y="446" class="sans" font-size="11" fill="#7c8aa5">Legitimate handshake passthrough</text>
+  <g transform="translate(926 396)"><circle r="14" fill="#38bdf8" fill-opacity="0.10" stroke="#38bdf8" stroke-opacity="0.40"/><circle r="6.5" fill="none" stroke="#7dd3fc" stroke-width="1.5"/><path d="M-3 0.3 L-0.8 2.6 L3.4 -2.2" fill="none" stroke="#7dd3fc" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
 </svg>
