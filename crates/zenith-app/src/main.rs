@@ -311,9 +311,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     let sessions = totem_sessions.lock().await;
                     let times = encode_title_times_packet(5, 50, 15);
-                    let sub = encode_subtitle_packet(
-                        "§c§lBACKEND RESTARTING §7Recovery in progress...",
-                    );
+                    let sub =
+                        encode_subtitle_packet("§c§lBACKEND RESTARTING §7Recovery in progress...");
                     let title = encode_title_packet("§c⚠");
                     let chat = encode_system_chat_packet(
                         "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
