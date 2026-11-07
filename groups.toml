@@ -5,7 +5,7 @@
 name = "admin"
 weight = 1000
 is_staff = true
-members = ["Axxio_HC", "Axxio", "xxaxio", "Merlin", "Admin", "Player"]
+members = ["Axxio_HC"]
 
 [[groups]]
 name = "vip"
