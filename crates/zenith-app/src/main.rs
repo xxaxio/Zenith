@@ -264,12 +264,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Totem Lifeline: Active SLP Health Probing & Anti-Crash Evacuation
-    let totem_config = TotemConfig::default();
+    let totem_config = TotemConfig {
+        probe_interval_ms: config.totem.probe_interval_ms,
+        probe_timeout_ms: config.totem.probe_timeout_ms,
+        degraded_latency_ms: 200,
+        min_failures_for_offline: config.totem.consecutive_failures,
+        min_successes_for_recovery: config.totem.consecutive_successes,
+    };
     let (totem_lifeline, totem_handles) = TotemLifeline::new(&target_server, totem_config);
     let mut totem_event_rx = totem_handles.event_rx;
     let health_rx = totem_handles.health_rx;
 
-    tokio::spawn(totem_lifeline.run());
+    if config.totem.enabled {
+        tokio::spawn(totem_lifeline.run());
+    }
 
     let hud_health_rx = health_rx.clone();
     let wave_health_rx = health_rx.clone();
@@ -303,11 +311,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     let sessions = totem_sessions.lock().await;
                     let times = encode_title_times_packet(5, 50, 15);
-                    let sub =
-                        encode_subtitle_packet("§c§lSERVEUR EN PAUSE §7Redémarrage en cours...");
+                    let sub = encode_subtitle_packet(
+                        "§c§lBACKEND RESTARTING §7Recovery in progress...",
+                    );
                     let title = encode_title_packet("§c⚠");
                     let chat = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERTE : §7Le serveur cible a crashé ou redémarre. Vous êtes protégés dans le sas !",
+                        "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
                         false,
                     );
 
@@ -341,12 +350,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let sessions = totem_sessions.lock().await;
                     let times = encode_title_times_packet(5, 50, 15);
                     let sub = encode_subtitle_packet(
-                        "§a§lSERVEUR PRÊT ! §7Transferts automatiques en cours...",
+                        "§a§lBACKEND READY §7Resuming automatic transfers...",
                     );
                     let title = encode_title_packet("§a▶");
                     let chat = encode_system_chat_packet(
                         &format!(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §a§lSERVEUR EN LIGNE ! §7Ping: §e{}ms§7. Préparez-vous au transfert...",
+                            "§b§lᴢᴇɴɪᴛʜ §8» §a§lBACKEND ONLINE! §7Ping: §e{}ms§7. Preparing transfers...",
                             latency_ms
                         ),
                         false,
