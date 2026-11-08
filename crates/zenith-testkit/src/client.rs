@@ -43,6 +43,10 @@ pub enum AdversaryStrategy {
     MalformedVarInt,
     /// Sends a Play state packet before completing Handshake / Login.
     StateConfusion,
+    /// Bypasses sending mandatory ClientInformation in Configuration phase.
+    MissingClientInfo,
+    /// Injects a blacklisted client software brand (e.g. "mcbot").
+    BlockedBrand(String),
     /// Fires a massive burst of packets in quick succession to trigger rate limiters.
     TokenBucketFlood { count: usize },
     /// Mutates packet bodies with bit flips or garbage padding.
@@ -195,6 +199,19 @@ impl SyntheticClient {
 
     /// Configuration phase.
     async fn execute_configuration_phase(&self, stream: &mut TcpStream) -> Result<(), ClientError> {
+        // 1. Send legitimate ClientInformation (Packet 0x00)
+        let info = zenith_wire::ClientInformation::default();
+        write_raw_packet(stream, 0x00, &info.encode()).await?;
+
+        // 2. Send legitimate client brand (Packet 0x02)
+        let mut brand_bytes = Vec::new();
+        write_string("zenith-synthetic", &mut brand_bytes);
+        let cp = zenith_wire::CustomPayload {
+            channel: "minecraft:brand".into(),
+            data: brand_bytes,
+        };
+        write_raw_packet(stream, 0x02, &cp.encode()).await?;
+
         loop {
             let (packet_id, payload) =
                 match tokio::time::timeout(Duration::from_secs(5), read_raw_packet(stream, 32_768))
@@ -209,16 +226,6 @@ impl SyntheticClient {
                 };
 
             match packet_id {
-                // 0x00 Clientbound PluginMessage (e.g. minecraft:brand)
-                0x00 => {
-                    // Send brand response: 0x01 Serverbound PluginMessage
-                    let mut brand_body = Vec::new();
-                    write_string("minecraft:brand", &mut brand_body);
-                    let mut brand_text = Vec::new();
-                    write_string("zenith-synthetic", &mut brand_text);
-                    brand_body.extend_from_slice(&brand_text);
-                    write_raw_packet(stream, 0x01, &brand_body).await?;
-                }
                 // 0x03 FinishConfiguration
                 0x03 => {
                     // 0x03 AcknowledgeFinishConfiguration
@@ -410,6 +417,48 @@ impl SyntheticClient {
                 let corrupted = mutate_packet(&valid, *kind, *seed);
                 let _ = stream.write_all(&corrupted).await;
                 let _ = stream.flush().await;
+
+                let mut check = [0u8; 1];
+                let n = stream.read(&mut check).await.unwrap_or(0);
+                if n == 0 {
+                    Ok(ClientOutcome::ShieldJailed)
+                } else {
+                    Ok(ClientOutcome::Disconnected)
+                }
+            }
+            AdversaryStrategy::MissingClientInfo => {
+                // Complete handshake & login, but deliberately skip ClientInformation in Configuration
+                self.execute_handshake_and_login(stream).await?;
+                // Read FinishConfiguration (0x03) from server
+                let _ = read_raw_packet(stream, 32_768).await;
+                // Directly send FinishConfigurationAck (0x03) omitting ClientInformation
+                let _ = write_raw_packet(stream, 0x03, &[]).await;
+
+                let mut check = [0u8; 1];
+                let n = stream.read(&mut check).await.unwrap_or(0);
+                if n == 0 {
+                    Ok(ClientOutcome::ShieldJailed)
+                } else {
+                    Ok(ClientOutcome::Disconnected)
+                }
+            }
+            AdversaryStrategy::BlockedBrand(brand) => {
+                // Complete handshake & login, send ClientInformation, but inject a blocked brand
+                self.execute_handshake_and_login(stream).await?;
+                let info = zenith_wire::ClientInformation::default();
+                let _ = write_raw_packet(stream, 0x00, &info.encode()).await;
+
+                let mut brand_bytes = Vec::new();
+                write_string(brand, &mut brand_bytes);
+                let cp = zenith_wire::CustomPayload {
+                    channel: "minecraft:brand".into(),
+                    data: brand_bytes,
+                };
+                let _ = write_raw_packet(stream, 0x02, &cp.encode()).await;
+
+                // Read server finish config
+                let _ = read_raw_packet(stream, 32_768).await;
+                let _ = write_raw_packet(stream, 0x03, &[]).await;
 
                 let mut check = [0u8; 1];
                 let n = stream.read(&mut check).await.unwrap_or(0);

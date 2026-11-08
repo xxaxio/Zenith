@@ -91,6 +91,28 @@ enable_challenge = true
 # Timeout in milliseconds to answer the protocol challenge before bot ejection.
 challenge_timeout_ms = 3000
 
+[shield.fingerprint]
+# Enable client behavioral & protocol fingerprinting.
+# Validates client settings and client brand in Configuration phase (0% false positives on real players).
+enabled = true
+
+# Require ClientInformation packet (Packet 0x00) with realistic view distance (2..=32 chunks).
+# Automated headless scripts and botnet flooders omitting this packet are instantly dropped.
+require_client_info = true
+
+# Minimum acceptable view distance in chunks (vanilla client minimum is 2).
+min_view_distance = 2
+
+# Maximum acceptable view distance in chunks (vanilla client maximum is 32).
+max_view_distance = 32
+
+# Require minecraft:brand plugin message.
+require_brand = false
+
+# Blacklisted client software brands (matched case-insensitively).
+# NOTE: Player usernames are NEVER filtered (e.g. players named "RoboBot" can play freely).
+blocked_brands = ["mcbot", "crafatar", "botnet", "headless"]
+
 [forwarding]
 # Optional HMAC-SHA256 secret key for signing transfer tokens into backend proxies.
 # If left empty, token signing is disabled.

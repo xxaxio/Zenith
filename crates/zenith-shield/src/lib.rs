@@ -3,10 +3,14 @@
 
 pub mod challenge;
 pub mod concurrency;
+pub mod fingerprint;
 pub mod rate_limit;
 
 pub use challenge::{ChallengeStatus, ProtocolChallenge};
 pub use concurrency::{ConnectionGuard, ConnectionTracker};
+pub use fingerprint::{
+    ClientFingerprint, FingerprintConfig, FingerprintError, FingerprintValidator,
+};
 pub use rate_limit::{IpRateLimiter, JailManager, RateLimitConfig, SubnetKey, TokenBucket};
 
 use std::net::IpAddr;
@@ -32,6 +36,8 @@ pub enum ShieldError {
     IpJailed(IpAddr, Duration),
     #[error("Protocol challenge timeout exceeded ({0:?})")]
     ChallengeTimeout(Duration),
+    #[error("Client fingerprint validation failed: {0}")]
+    Fingerprint(#[from] FingerprintError),
     #[error("Malformed frame or wire error: {0}")]
     Wire(#[from] WireError),
     #[error("Underlying IO error: {0}")]

@@ -20,7 +20,9 @@ use zenith_display::{
     encode_title_packet, encode_title_times_packet,
 };
 use zenith_session::{SessionCommand, SessionEvent, SessionId, VirtualSession};
-use zenith_shield::{ConnectionTracker, IpRateLimiter, RateLimitConfig, ShieldLimits};
+use zenith_shield::{
+    ConnectionTracker, FingerprintConfig, IpRateLimiter, RateLimitConfig, ShieldLimits,
+};
 use zenith_totem::{
     BackendHealth, HorizonTurboClient, TotemConfig, TotemEvent, TotemLifeline, TurboEndpoint,
 };
@@ -611,6 +613,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let loop_metrics = Arc::clone(&metrics);
     let proxy_enabled = config.proxy.enabled;
     let trusted_proxies = config.proxy.trusted_proxies.clone();
+    let fp_config = FingerprintConfig {
+        enabled: config.shield.enabled && config.shield.fingerprint.enabled,
+        require_client_info: config.shield.fingerprint.require_client_info,
+        min_view_distance: config.shield.fingerprint.min_view_distance,
+        max_view_distance: config.shield.fingerprint.max_view_distance,
+        require_brand: config.shield.fingerprint.require_brand,
+        blocked_brands: config.shield.fingerprint.blocked_brands.clone(),
+    };
 
     loop {
         let (mut socket, peer_addr) = listener.accept().await?;
@@ -707,6 +717,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let target_clone = target_server.clone();
         let event_tx_clone = event_tx.clone();
         let task_metrics = Arc::clone(&loop_metrics);
+        let task_fp_config = fp_config.clone();
 
         tokio::spawn(async move {
             let _guard = _conn_guard;
@@ -717,6 +728,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 VirtualSession::with_command_channel(socket, ShieldLimits::default(), cmd_rx);
             session.set_target_server(target_clone.clone());
             session.set_event_sender(event_tx_clone);
+            session.set_fingerprint_config(task_fp_config);
 
             match session.complete_handshake_and_login().await {
                 Ok(None) => {

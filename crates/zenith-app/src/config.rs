@@ -129,6 +129,50 @@ impl Default for TurboConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FingerprintSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub require_client_info: bool,
+    #[serde(default = "default_min_view_distance")]
+    pub min_view_distance: i8,
+    #[serde(default = "default_max_view_distance")]
+    pub max_view_distance: i8,
+    #[serde(default)]
+    pub require_brand: bool,
+    #[serde(default = "default_blocked_brands")]
+    pub blocked_brands: Vec<String>,
+}
+
+fn default_min_view_distance() -> i8 {
+    2
+}
+fn default_max_view_distance() -> i8 {
+    32
+}
+fn default_blocked_brands() -> Vec<String> {
+    vec![
+        "mcbot".to_string(),
+        "crafatar".to_string(),
+        "botnet".to_string(),
+        "headless".to_string(),
+    ]
+}
+
+impl Default for FingerprintSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            require_client_info: true,
+            min_view_distance: default_min_view_distance(),
+            max_view_distance: default_max_view_distance(),
+            require_brand: false,
+            blocked_brands: default_blocked_brands(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShieldSettings {
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -150,6 +194,8 @@ pub struct ShieldSettings {
     pub enable_challenge: bool,
     #[serde(default = "default_challenge_timeout")]
     pub challenge_timeout_ms: u64,
+    #[serde(default)]
+    pub fingerprint: FingerprintSettings,
 }
 
 fn default_max_conn_per_ip() -> usize {
@@ -190,6 +236,7 @@ impl Default for ShieldSettings {
             jail_duration_secs: default_jail_duration(),
             enable_challenge: true,
             challenge_timeout_ms: default_challenge_timeout(),
+            fingerprint: FingerprintSettings::default(),
         }
     }
 }

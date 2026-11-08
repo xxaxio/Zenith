@@ -44,6 +44,8 @@ pub enum SessionState {
 pub enum SessionError {
     #[error("Shield error: {0}")]
     Shield(#[from] ShieldError),
+    #[error("Fingerprint validation error: {0}")]
+    Fingerprint(#[from] zenith_shield::FingerprintError),
     #[error("Wire protocol error: {0}")]
     Wire(#[from] WireError),
     #[error("Unexpected packet in state {state:?}: ID 0x{id:02X}")]
@@ -96,6 +98,8 @@ pub struct VirtualSession<S> {
     pub ping_ms: u32,
     pub target_server: String,
     shield: ShieldedStream<S>,
+    pub fingerprint: zenith_shield::ClientFingerprint,
+    pub fingerprint_config: Option<zenith_shield::FingerprintConfig>,
     pub cmd_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SessionCommand>>,
     pub event_tx: Option<tokio::sync::mpsc::UnboundedSender<SessionEvent>>,
 }
@@ -118,6 +122,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             ping_ms: 0,
             target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
+            fingerprint: zenith_shield::ClientFingerprint::default(),
+            fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
             cmd_rx: None,
             event_tx: None,
         }
@@ -139,6 +145,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             ping_ms: 0,
             target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
+            fingerprint: zenith_shield::ClientFingerprint::default(),
+            fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
             cmd_rx: Some(cmd_rx),
             event_tx: None,
         }
@@ -147,6 +155,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
     /// Configures the backend target server string for manual/automatic transfers.
     pub fn set_target_server(&mut self, target: String) {
         self.target_server = target;
+    }
+
+    /// Configures the client behavioral and protocol fingerprint validation settings.
+    pub fn set_fingerprint_config(&mut self, config: zenith_shield::FingerprintConfig) {
+        self.fingerprint_config = Some(config);
     }
 
     /// Configures the event sender channel for notifying the server coordinator of commands and disconnects.
@@ -312,11 +325,55 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                     id: 0xFF,
                 });
             }
-            let (packet_id, _) = self.shield.read_packet(false).await?;
-            if packet_id == 0x03 || packet_id == 0x02 {
-                break;
+            let (packet_id, payload) = self.shield.read_packet(false).await?;
+            match packet_id {
+                0x00 => {
+                    // ClientInformation (Packet ID 0x00 in Configuration)
+                    if let Ok(info) = zenith_wire::ClientInformation::decode(&payload) {
+                        debug!(
+                            session = ?self.id,
+                            locale = %info.language,
+                            view_distance = info.view_distance,
+                            "ClientInformation received in Configuration"
+                        );
+                        self.fingerprint.client_info = Some(info);
+                    }
+                }
+                0x01 | 0x02 => {
+                    // Try decoding as CustomPayload / PluginMessage (e.g. minecraft:brand)
+                    if let Ok(cp) = zenith_wire::CustomPayload::decode(&payload) {
+                        if let Some(brand) = cp.as_brand() {
+                            debug!(
+                                session = ?self.id,
+                                brand = %brand,
+                                "Client software brand received in Configuration"
+                            );
+                            self.fingerprint.brand = Some(brand);
+                            continue;
+                        }
+                    }
+                    // If empty payload on 0x02, it may be an older FinishConfiguration ack
+                    if packet_id == 0x02 && payload.is_empty() {
+                        if let Some(ref config) = self.fingerprint_config {
+                            zenith_shield::FingerprintValidator::evaluate(
+                                config,
+                                &self.fingerprint,
+                            )?;
+                        }
+                        break;
+                    }
+                }
+                0x03 => {
+                    // AcknowledgeFinishConfiguration in Protocol 777
+                    if let Some(ref config) = self.fingerprint_config {
+                        zenith_shield::FingerprintValidator::evaluate(config, &self.fingerprint)?;
+                    }
+                    break;
+                }
+                _ => {
+                    // Ignore other non-critical configuration packets (e.g. 0x07 SelectKnownPacks, keepalives)
+                }
             }
-            // Ignore other configuration packets (e.g. client info 0x00, known packs 0x07)
         }
 
         self.state = SessionState::InLimbo;

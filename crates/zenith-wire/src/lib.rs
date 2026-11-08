@@ -394,6 +394,129 @@ pub fn offline_uuid(username: &str) -> u128 {
     u128::from_be_bytes(bytes)
 }
 
+/// ClientInformation packet (Packet ID 0x00 in Configuration, 0x0E in Play).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ClientInformation {
+    pub language: String,
+    pub view_distance: i8,
+    pub chat_visibility: i32,
+    pub chat_colors: bool,
+    pub model_customisation: u8,
+    pub main_hand: i32,
+    pub text_filtering: bool,
+    pub allows_listing: bool,
+    pub particle_status: i32,
+}
+
+impl Default for ClientInformation {
+    fn default() -> Self {
+        Self {
+            language: "en_us".into(),
+            view_distance: 12,
+            chat_visibility: 0,
+            chat_colors: true,
+            model_customisation: 0x7F,
+            main_hand: 1,
+            text_filtering: false,
+            allows_listing: true,
+            particle_status: 0,
+        }
+    }
+}
+
+impl ClientInformation {
+    pub fn decode(payload: &[u8]) -> Result<Self, WireError> {
+        let mut cur = payload;
+        let language = read_string(&mut cur, 16)?;
+        if cur.remaining() < 1 {
+            return Err(WireError::Underflow);
+        }
+        let view_distance = cur.get_i8();
+        let chat_visibility = read_varint(&mut cur)?;
+        if cur.remaining() < 1 {
+            return Err(WireError::Underflow);
+        }
+        let chat_colors = cur.get_u8() != 0;
+        if cur.remaining() < 1 {
+            return Err(WireError::Underflow);
+        }
+        let model_customisation = cur.get_u8();
+        let main_hand = read_varint(&mut cur)?;
+        if cur.remaining() < 1 {
+            return Err(WireError::Underflow);
+        }
+        let text_filtering = cur.get_u8() != 0;
+        if cur.remaining() < 1 {
+            return Err(WireError::Underflow);
+        }
+        let allows_listing = cur.get_u8() != 0;
+        let particle_status = if cur.has_remaining() {
+            read_varint(&mut cur)?
+        } else {
+            0
+        };
+
+        Ok(Self {
+            language,
+            view_distance,
+            chat_visibility,
+            chat_colors,
+            model_customisation,
+            main_hand,
+            text_filtering,
+            allows_listing,
+            particle_status,
+        })
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut buf = BytesMut::new();
+        write_string(&self.language, &mut buf);
+        buf.put_i8(self.view_distance);
+        write_varint(self.chat_visibility, &mut buf);
+        buf.put_u8(u8::from(self.chat_colors));
+        buf.put_u8(self.model_customisation);
+        write_varint(self.main_hand, &mut buf);
+        buf.put_u8(u8::from(self.text_filtering));
+        buf.put_u8(u8::from(self.allows_listing));
+        write_varint(self.particle_status, &mut buf);
+        buf.to_vec()
+    }
+}
+
+/// CustomPayload / PluginMessage packet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CustomPayload {
+    pub channel: String,
+    pub data: Vec<u8>,
+}
+
+impl CustomPayload {
+    pub fn decode(payload: &[u8]) -> Result<Self, WireError> {
+        let mut cur = payload;
+        let channel = read_string(&mut cur, 32767)?;
+        let data = cur.to_vec();
+        Ok(Self { channel, data })
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut buf = BytesMut::new();
+        write_string(&self.channel, &mut buf);
+        buf.extend_from_slice(&self.data);
+        buf.to_vec()
+    }
+
+    /// Attempts to extract the client brand string if channel is "minecraft:brand".
+    pub fn as_brand(&self) -> Option<String> {
+        if self.channel == "minecraft:brand" {
+            let mut cur = &self.data[..];
+            read_string(&mut cur, 64).ok()
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -477,5 +600,38 @@ mod tests {
         buf.put_u128(0x42);
         let err = LoginStart::decode(&buf).unwrap_err();
         assert!(matches!(err, WireError::InvalidUsername(_)));
+    }
+
+    #[test]
+    fn test_client_information_roundtrip() {
+        let info = ClientInformation {
+            language: "fr_fr".into(),
+            view_distance: 16,
+            chat_visibility: 0,
+            chat_colors: true,
+            model_customisation: 0x7F,
+            main_hand: 1,
+            text_filtering: false,
+            allows_listing: true,
+            particle_status: 0,
+        };
+        let encoded = info.encode();
+        let decoded =
+            ClientInformation::decode(&encoded).expect("failed to decode ClientInformation");
+        assert_eq!(decoded, info);
+    }
+
+    #[test]
+    fn test_custom_payload_brand_extraction() {
+        let mut brand_bytes = BytesMut::new();
+        write_string("vanilla", &mut brand_bytes);
+
+        let payload = CustomPayload {
+            channel: "minecraft:brand".into(),
+            data: brand_bytes.to_vec(),
+        };
+        let encoded = payload.encode();
+        let decoded = CustomPayload::decode(&encoded).expect("failed to decode CustomPayload");
+        assert_eq!(decoded.as_brand().as_deref(), Some("vanilla"));
     }
 }

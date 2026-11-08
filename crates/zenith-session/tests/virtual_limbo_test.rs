@@ -1,8 +1,8 @@
-use tokio::io::duplex;
+use tokio::io::{AsyncReadExt, duplex};
 use zenith_session::VirtualSession;
 use zenith_wire::{
-    Handshake, HandshakeIntent, KeepAlive, LoginStart, PROTOCOL_VERSION, read_raw_packet,
-    write_raw_packet,
+    ClientInformation, CustomPayload, Handshake, HandshakeIntent, KeepAlive, LoginStart,
+    PROTOCOL_VERSION, read_raw_packet, write_raw_packet, write_string,
 };
 
 #[tokio::test]
@@ -42,14 +42,28 @@ async fn test_virtual_limbo_full_lifecycle() {
         let (finish_cfg_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
         assert_eq!(finish_cfg_id, 0x03);
 
-        // 6. Send Finish Configuration Acknowledgment (ID 0x03)
+        // 6. Send legitimate ClientInformation (0x00) and Brand (0x02)
+        let info = ClientInformation::default();
+        write_raw_packet(&mut c, 0x00, &info.encode())
+            .await
+            .unwrap();
+
+        let mut brand_bytes = Vec::new();
+        write_string("vanilla", &mut brand_bytes);
+        let cp = CustomPayload {
+            channel: "minecraft:brand".into(),
+            data: brand_bytes,
+        };
+        write_raw_packet(&mut c, 0x02, &cp.encode()).await.unwrap();
+
+        // 7. Send Finish Configuration Acknowledgment (ID 0x03)
         write_raw_packet(&mut c, 0x03, &[]).await.unwrap();
 
-        // 7. Receive Login (Play) packet (ID 50)
+        // 8. Receive Login (Play) packet (ID 50)
         let (login_play_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
         assert_eq!(login_play_id, 50);
 
-        // 8. Consume Play initialization packets (GameEvent 39, ChunkBatchFinished 11, PlayerPosition 73, SystemChat 124) and reply to KeepAlive (45)
+        // 9. Consume Play initialization packets (GameEvent 39, ChunkBatchFinished 11, PlayerPosition 73, SystemChat 124) and reply to KeepAlive (45)
         loop {
             let (pkt_id, payload) = read_raw_packet(&mut c, 1024).await.unwrap();
             if pkt_id == 45 {
@@ -108,6 +122,21 @@ async fn test_virtual_limbo_broadcast_alert_command() {
 
         let (finish_cfg_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
         assert_eq!(finish_cfg_id, 0x03);
+
+        // Send legitimate ClientInformation (0x00) and Brand (0x02)
+        let info = ClientInformation::default();
+        write_raw_packet(&mut c, 0x00, &info.encode())
+            .await
+            .unwrap();
+
+        let mut brand_bytes = Vec::new();
+        write_string("vanilla", &mut brand_bytes);
+        let cp = CustomPayload {
+            channel: "minecraft:brand".into(),
+            data: brand_bytes,
+        };
+        write_raw_packet(&mut c, 0x02, &cp.encode()).await.unwrap();
+
         write_raw_packet(&mut c, 0x03, &[]).await.unwrap(); // Config finish ack
 
         let (login_play_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
@@ -160,4 +189,130 @@ async fn test_virtual_limbo_broadcast_alert_command() {
     c_res.unwrap();
     s_res.unwrap();
     send_res.unwrap();
+}
+
+#[tokio::test]
+async fn test_virtual_limbo_rejects_bot_missing_client_info() {
+    let (client, server) = duplex(4096);
+    let mut session = VirtualSession::new(server);
+
+    let client_task = tokio::spawn(async move {
+        let mut c = client;
+
+        // Handshake & Login
+        let hs = Handshake {
+            protocol_version: PROTOCOL_VERSION,
+            server_address: "localhost".into(),
+            server_port: 25565,
+            intent: HandshakeIntent::Login,
+        };
+        write_raw_packet(&mut c, 0x00, &hs.encode()).await.unwrap();
+
+        let start = LoginStart {
+            name: "BotScript".into(),
+            uuid: 0x9999_8888,
+        };
+        write_raw_packet(&mut c, 0x00, &start.encode())
+            .await
+            .unwrap();
+
+        let (success_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
+        assert_eq!(success_id, 0x02);
+        write_raw_packet(&mut c, 0x03, &[]).await.unwrap(); // Login ack
+
+        let (finish_cfg_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
+        assert_eq!(finish_cfg_id, 0x03);
+
+        // BOT BEHAVIOR: Deliberately skip ClientInformation and send 0x03 finish ack immediately
+        write_raw_packet(&mut c, 0x03, &[]).await.unwrap();
+
+        // Expect connection closed by server
+        let mut check = [0u8; 1];
+        let n = c.read(&mut check).await.unwrap_or(0);
+        assert_eq!(
+            n, 0,
+            "Server must disconnect bot omitting ClientInformation"
+        );
+    });
+
+    let server_task = tokio::spawn(async move {
+        let res = session.run().await;
+        assert!(
+            res.is_err(),
+            "Session must reject bot missing ClientInformation"
+        );
+    });
+
+    let (c_res, s_res) = tokio::join!(client_task, server_task);
+    c_res.unwrap();
+    s_res.unwrap();
+}
+
+#[tokio::test]
+async fn test_virtual_limbo_rejects_bot_with_blocked_brand() {
+    let (client, server) = duplex(4096);
+    let mut session = VirtualSession::new(server);
+
+    let client_task = tokio::spawn(async move {
+        let mut c = client;
+
+        // Handshake & Login
+        let hs = Handshake {
+            protocol_version: PROTOCOL_VERSION,
+            server_address: "localhost".into(),
+            server_port: 25565,
+            intent: HandshakeIntent::Login,
+        };
+        write_raw_packet(&mut c, 0x00, &hs.encode()).await.unwrap();
+
+        let start = LoginStart {
+            name: "AttackerPlayer".into(),
+            uuid: 0x7777_6666,
+        };
+        write_raw_packet(&mut c, 0x00, &start.encode())
+            .await
+            .unwrap();
+
+        let (success_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
+        assert_eq!(success_id, 0x02);
+        write_raw_packet(&mut c, 0x03, &[]).await.unwrap(); // Login ack
+
+        let (finish_cfg_id, _) = read_raw_packet(&mut c, 1024).await.unwrap();
+        assert_eq!(finish_cfg_id, 0x03);
+
+        // Send valid ClientInformation
+        let info = ClientInformation::default();
+        write_raw_packet(&mut c, 0x00, &info.encode())
+            .await
+            .unwrap();
+
+        // But send blocked brand "mcbot-v2"
+        let mut brand_bytes = Vec::new();
+        write_string("mcbot-v2", &mut brand_bytes);
+        let cp = CustomPayload {
+            channel: "minecraft:brand".into(),
+            data: brand_bytes,
+        };
+        write_raw_packet(&mut c, 0x02, &cp.encode()).await.unwrap();
+
+        // Send Finish Configuration Acknowledgment (ID 0x03)
+        write_raw_packet(&mut c, 0x03, &[]).await.unwrap();
+
+        // Expect connection closed by server
+        let mut check = [0u8; 1];
+        let n = c.read(&mut check).await.unwrap_or(0);
+        assert_eq!(n, 0, "Server must disconnect bot sending blocked brand");
+    });
+
+    let server_task = tokio::spawn(async move {
+        let res = session.run().await;
+        assert!(
+            res.is_err(),
+            "Session must reject bot sending blocked brand"
+        );
+    });
+
+    let (c_res, s_res) = tokio::join!(client_task, server_task);
+    c_res.unwrap();
+    s_res.unwrap();
 }
