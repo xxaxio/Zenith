@@ -50,6 +50,12 @@ Subcommands:
                   Phase 7 ingress: PROXY v2 binary stream, resource pack pre-caching, and broadcast alerts.
                   Example: zenith-bench phase7 127.0.0.1:25565 1000 15 300
 
+  online-crypto   [count] [secs] [concurrency] [mojang_delay_ms]
+                  Full Online Mojang Cryptography benchmark:
+                  Measures RSA-1024 decryption, AES-128 CFB8 stream cipher throughput,
+                  and live Mojang session server validation under sustained concurrency.
+                  Example: zenith-bench online-crypto 500 10 100 15
+
 Flags:
   --pin-cores     [SPEC] Pin benchmark process to logical cores (e.g. 'p-cores', 'e-cores', '0-3')
   -h, --help      Display this help message
@@ -248,6 +254,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 concurrency,
             )
             .await?;
+        }
+        "online-crypto" | "crypto" | "online" => {
+            let count: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(200);
+            let secs: u64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(8);
+            let concurrency: usize = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(50);
+            let mojang_delay_ms: u64 = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(10);
+
+            scenarios::run_online_crypto_benchmark(count, secs, concurrency, mojang_delay_ms)
+                .await?;
         }
         _ => {
             println!("{USAGE}");

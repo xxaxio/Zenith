@@ -12,7 +12,51 @@ use zenith_wire::{
     write_string, write_varint,
 };
 
+pub mod auth;
+pub use auth::{
+    AuthError, DEFAULT_MOJANG_AUTH_URL, MojangProfile, MojangProperty, verify_has_joined,
+};
+
 pub mod commands;
+
+/// Trait implemented by network streams supporting optional AES-128 CFB8 stream encryption.
+pub trait ConnectionStream: AsyncRead + AsyncWrite + Unpin {
+    /// Enables full-duplex AES-128 CFB8 stream cipher on the connection.
+    fn enable_encryption(&mut self, _secret: &[u8; 16]) {}
+
+    /// Returns `true` if stream cipher encryption is actively engaged.
+    fn is_encrypted(&self) -> bool {
+        false
+    }
+}
+
+impl<S: AsyncRead + AsyncWrite + Unpin> ConnectionStream for zenith_wire::EncryptedStream<S> {
+    fn enable_encryption(&mut self, secret: &[u8; 16]) {
+        self.enable_encryption(secret);
+    }
+
+    fn is_encrypted(&self) -> bool {
+        self.is_encrypted()
+    }
+}
+
+impl ConnectionStream for tokio::net::TcpStream {}
+impl ConnectionStream for tokio::io::DuplexStream {}
+
+/// Server authentication and cryptographic operating mode.
+#[derive(Clone, Default)]
+pub enum OnlineModeConfig {
+    /// Offline mode: client provides username & offline UUID, skipping cryptographic handshake.
+    #[default]
+    Offline,
+    /// Full online mode: enforces RSA 1024-bit key exchange, AES-128 CFB8 stream cipher,
+    /// and Mojang session server authentication.
+    Online {
+        keypair: std::sync::Arc<zenith_wire::RsaKeypair>,
+        auth_endpoint: Option<String>,
+        prevent_proxy_connections: bool,
+    },
+}
 
 /// Unique identifier for an active player session in Zenith.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -50,6 +94,10 @@ pub enum SessionError {
     Pacing(#[from] zenith_shield::PpsError),
     #[error("Wire protocol error: {0}")]
     Wire(#[from] WireError),
+    #[error("Mojang authentication error: {0}")]
+    Auth(#[from] crate::auth::AuthError),
+    #[error("Protocol error: {0}")]
+    Protocol(String),
     #[error("Unexpected packet in state {state:?}: ID 0x{id:02X}")]
     UnexpectedPacket { state: SessionState, id: i32 },
     #[error("Connection closed by peer")]
@@ -147,11 +195,12 @@ pub struct VirtualSession<S> {
     pub pps_meter: zenith_shield::PpsMeter,
     pub fingerprint: zenith_shield::ClientFingerprint,
     pub fingerprint_config: Option<zenith_shield::FingerprintConfig>,
+    pub online_mode: OnlineModeConfig,
     pub cmd_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SessionCommand>>,
     pub event_tx: Option<tokio::sync::mpsc::UnboundedSender<SessionEvent>>,
 }
 
-impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
+impl<S: ConnectionStream> VirtualSession<S> {
     /// Spawns a new virtual session around a stream with default shield limits.
     pub fn new(stream: S) -> Self {
         Self::with_limits(stream, ShieldLimits::default())
@@ -173,6 +222,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             pps_meter: zenith_shield::PpsMeter::default(),
             fingerprint: zenith_shield::ClientFingerprint::default(),
             fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
+            online_mode: OnlineModeConfig::Offline,
             cmd_rx: None,
             event_tx: None,
         }
@@ -186,6 +236,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
     /// Configures the packet rate limit pacing parameters.
     pub fn set_pps_config(&mut self, config: zenith_shield::PpsConfig) {
         self.pps_meter = zenith_shield::PpsMeter::new(config);
+    }
+
+    /// Configures the server authentication mode (offline or full online Mojang crypto).
+    pub fn set_online_mode(&mut self, config: OnlineModeConfig) {
+        self.online_mode = config;
     }
 
     /// Spawns a new virtual session with a command channel and explicit shield limits.
@@ -208,6 +263,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             pps_meter: zenith_shield::PpsMeter::default(),
             fingerprint: zenith_shield::ClientFingerprint::default(),
             fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
+            online_mode: OnlineModeConfig::Offline,
             cmd_rx: Some(cmd_rx),
             event_tx: None,
         }
@@ -361,7 +417,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         Ok(())
     }
 
-    /// Step 2b: Login negotiation.
+    /// Step 2b: Login negotiation (supports both offline mode and full online Mojang crypto).
     async fn handle_login(&mut self) -> Result<(), SessionError> {
         let (login_id, payload) = self
             .shield
@@ -378,14 +434,109 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         let start = LoginStart::decode(&payload)?;
         info!(session = ?self.id, username = %start.name, "Player logging into Zenith limbo");
         self.username = Some(start.name.clone());
-        self.uuid = Some(start.uuid);
 
-        // Send Login Success (Packet ID 0x02 in Login state)
-        let success = LoginSuccess {
-            uuid: start.uuid,
-            username: start.name,
-        };
-        self.shield.write_packet(0x02, &success.encode()).await?;
+        match &self.online_mode {
+            OnlineModeConfig::Offline => {
+                let uuid = if start.uuid != 0 {
+                    start.uuid
+                } else {
+                    zenith_wire::offline_uuid(&start.name)
+                };
+                self.uuid = Some(uuid);
+
+                // Send Login Success (Packet ID 0x02 in Login state)
+                let success = LoginSuccess {
+                    uuid,
+                    username: start.name,
+                };
+                self.shield.write_packet(0x02, &success.encode()).await?;
+            }
+            OnlineModeConfig::Online {
+                keypair,
+                auth_endpoint,
+                prevent_proxy_connections,
+            } => {
+                // 1. Generate 4-byte random challenge nonce
+                let mut challenge = [0u8; 4];
+                zenith_wire::random_bytes(&mut challenge)?;
+
+                // 2. Send EncryptionRequest (Clientbound 0x01)
+                let enc_req = zenith_wire::EncryptionRequest {
+                    server_id: String::new(),
+                    public_key: keypair.public_der().to_vec(),
+                    challenge: challenge.to_vec(),
+                    should_authenticate: true,
+                };
+                self.shield.write_packet(0x01, &enc_req.encode()).await?;
+
+                // 3. Read EncryptionResponse (Serverbound 0x01)
+                let (enc_resp_id, enc_resp_payload) = self
+                    .shield
+                    .read_packet(zenith_shield::ProtocolPhase::Login)
+                    .await?;
+                self.pps_meter.record_packet()?;
+                if enc_resp_id != 0x01 {
+                    return Err(SessionError::UnexpectedPacket {
+                        state: self.state,
+                        id: enc_resp_id,
+                    });
+                }
+
+                let enc_resp = zenith_wire::EncryptionResponse::decode(&enc_resp_payload)?;
+
+                // 4. Decrypt and verify challenge nonce matches
+                let decrypted_challenge = keypair.decrypt(&enc_resp.challenge)?;
+                if decrypted_challenge != challenge {
+                    return Err(SessionError::Protocol("Challenge nonce mismatch".into()));
+                }
+
+                // 5. Decrypt 16-byte shared secret
+                let decrypted_secret = keypair.decrypt(&enc_resp.shared_secret)?;
+                let secret: [u8; 16] = decrypted_secret
+                    .try_into()
+                    .map_err(|_| SessionError::Protocol("Invalid shared secret length".into()))?;
+
+                // 6. Compute signed SHA-1 server hash
+                let server_hash =
+                    zenith_wire::compute_server_hash("", &secret, keypair.public_der());
+
+                // 7. Enable AES-128 CFB8 stream encryption immediately on socket
+                self.shield.get_mut().enable_encryption(&secret);
+
+                // 8. Verify with Mojang session server
+                let endpoint = auth_endpoint
+                    .as_deref()
+                    .unwrap_or(crate::auth::DEFAULT_MOJANG_AUTH_URL);
+                let client_ip = if *prevent_proxy_connections {
+                    self.client_ip
+                } else {
+                    None
+                };
+
+                let profile = crate::auth::verify_has_joined(
+                    endpoint,
+                    &start.name,
+                    &server_hash,
+                    client_ip,
+                    Duration::from_secs(5),
+                )
+                .await?;
+
+                let verified_uuid = profile.parsed_uuid().ok_or_else(|| {
+                    SessionError::Protocol("Failed to parse verified Mojang UUID".into())
+                })?;
+
+                self.uuid = Some(verified_uuid);
+                self.username = Some(profile.name.clone());
+
+                // 9. Send Login Success (0x02) - sent encrypted over AES CFB8
+                let success = LoginSuccess {
+                    uuid: verified_uuid,
+                    username: profile.name,
+                };
+                self.shield.write_packet(0x02, &success.encode()).await?;
+            }
+        }
 
         // Expect Login Acknowledged (Packet ID 0x03 in Login state for 26.3)
         let (ack_id, _) = self

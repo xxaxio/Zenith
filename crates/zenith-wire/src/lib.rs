@@ -15,6 +15,12 @@ pub use proxy::{PROXY_V2_MAGIC, ProxyCommand, ProxyError, ProxyHeader, is_truste
 pub mod batch;
 pub use batch::{DEFAULT_MAX_BATCH_BYTES, DEFAULT_MAX_BATCH_PACKETS, PacketBatchWriter};
 
+pub mod crypto;
+pub use crypto::{
+    EncryptedStream, EncryptionRequest, EncryptionResponse, RsaKeypair, compute_server_hash,
+    generate_shared_secret, random_bytes, rsa_encrypt,
+};
+
 /// Wire protocol errors.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum WireError {
