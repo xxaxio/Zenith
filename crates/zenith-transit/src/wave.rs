@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use crate::config::TransitConfig;
 use crate::health::TargetServerHealth;
 
-/// Ordonnanceur de vagues adaptatives cadencées selon la charge backend.
+/// Adaptive wave scheduler paced dynamically according to backend load.
 #[derive(Debug, Clone, Default)]
 pub struct WaveScheduler {
     last_drain: Option<Instant>,

@@ -187,10 +187,10 @@ impl GroupManager {
     ) -> Result<(), &'static str> {
         let lower = name.trim().to_lowercase();
         if lower.is_empty() {
-            return Err("Le nom du groupe ne peut pas être vide");
+            return Err("Group name cannot be empty");
         }
         if self.groups.contains_key(&lower) {
-            return Err("Un groupe avec ce nom existe déjà");
+            return Err("A group with this name already exists");
         }
 
         self.groups
@@ -203,10 +203,10 @@ impl GroupManager {
     pub fn delete_group(&mut self, name: &str) -> Result<(), &'static str> {
         let lower = name.trim().to_lowercase();
         if lower == "default" {
-            return Err("Impossible de supprimer le groupe 'default'");
+            return Err("Cannot delete the 'default' group");
         }
         if self.groups.remove(&lower).is_none() {
-            return Err("Groupe introuvable");
+            return Err("Group not found");
         }
         let _ = self.save();
         Ok(())
@@ -215,7 +215,7 @@ impl GroupManager {
     /// Updates the weight of a group.
     pub fn set_weight(&mut self, name: &str, weight: u32) -> Result<(), &'static str> {
         let lower = name.trim().to_lowercase();
-        let group = self.groups.get_mut(&lower).ok_or("Groupe introuvable")?;
+        let group = self.groups.get_mut(&lower).ok_or("Group not found")?;
         group.weight = weight;
         let _ = self.save();
         Ok(())
@@ -224,7 +224,7 @@ impl GroupManager {
     /// Updates the staff permission of a group.
     pub fn set_staff(&mut self, name: &str, is_staff: bool) -> Result<(), &'static str> {
         let lower = name.trim().to_lowercase();
-        let group = self.groups.get_mut(&lower).ok_or("Groupe introuvable")?;
+        let group = self.groups.get_mut(&lower).ok_or("Group not found")?;
         group.is_staff = is_staff;
         let _ = self.save();
         Ok(())
@@ -235,13 +235,10 @@ impl GroupManager {
         let lower_grp = group_name.trim().to_lowercase();
         let lower_user = username.trim().to_lowercase();
         if lower_user.is_empty() {
-            return Err("Le pseudo du joueur ne peut pas être vide");
+            return Err("Player username cannot be empty");
         }
 
-        let group = self
-            .groups
-            .get_mut(&lower_grp)
-            .ok_or("Groupe introuvable")?;
+        let group = self.groups.get_mut(&lower_grp).ok_or("Group not found")?;
         group.members.insert(lower_user);
         let _ = self.save();
         Ok(())
@@ -252,12 +249,9 @@ impl GroupManager {
         let lower_grp = group_name.trim().to_lowercase();
         let lower_user = username.trim().to_lowercase();
 
-        let group = self
-            .groups
-            .get_mut(&lower_grp)
-            .ok_or("Groupe introuvable")?;
+        let group = self.groups.get_mut(&lower_grp).ok_or("Group not found")?;
         if !group.members.remove(&lower_user) {
-            return Err("Le joueur ne fait pas partie de ce groupe");
+            return Err("Player is not a member of this group");
         }
         let _ = self.save();
         Ok(())

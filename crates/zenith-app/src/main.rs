@@ -618,7 +618,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let _ = tx.send(SessionCommand::SendRaw(snd));
                             }
                             let chat_msg = encode_system_chat_packet(
-                                "§b§lᴢᴇɴɪᴛʜ §8» §aVotre tour est arrivé ! Transfert en cours...",
+                                "§b§lᴢᴇɴɪᴛʜ §8» §aYour turn has arrived! Transfer in progress...",
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(chat_msg));
@@ -959,7 +959,7 @@ async fn handle_command(
         "queue" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cVous n'avez pas la permission d'utiliser cette commande.",
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to use this command.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1007,7 +1007,7 @@ async fn handle_command(
         "queueskip" | "skip" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cVous n'avez pas la permission d'utiliser cette commande.",
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to use this command.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1015,10 +1015,8 @@ async fn handle_command(
             }
 
             if args.is_empty() {
-                let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cUtilisation: /queueskip <joueur>",
-                    false,
-                );
+                let msg =
+                    encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /queueskip <player>", false);
                 let _ = tx.send(SessionCommand::SendRaw(msg));
                 return;
             }
@@ -1049,7 +1047,7 @@ async fn handle_command(
                     let _ = target_tx.send(SessionCommand::SendRaw(snd));
                 }
                 let target_msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §aTransfert forcé vers le serveur de jeu !",
+                    "§b§lᴢᴇɴɪᴛʜ §8» §aForced transfer to backend server in progress!",
                     false,
                 );
                 let _ = target_tx.send(SessionCommand::SendRaw(target_msg));
@@ -1066,7 +1064,7 @@ async fn handle_command(
 
                 let reply = encode_system_chat_packet(
                     &format!(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §aTransfert forcé de §e{} §aeffectué avec succès.",
+                        "§b§lᴢᴇɴɪᴛʜ §8» §aForced transfer of §e{} §acompleted successfully.",
                         target_actual_name
                     ),
                     false,

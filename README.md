@@ -14,28 +14,28 @@ Zenith is a standalone limbo and queue server built in Rust for [Horizon](https:
 
 | Component | Status | Description |
 |---|:---:|---|
-| **Zero-Chunk Dimension** | `[✔ Mesuré]` | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
-| **Lightweight Async Actors** | `[✔ Mesuré]` | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
-| **L2 Kernel Firewall Drop** | `[✔ Mesuré]` | OS-level Netsh/Nftables asynchronous drop for persistent malicious IPs (`zenith-shield`) |
-| **Write-Batching Relay** | `[✔ Mesuré]` | Grouped socket flushes (up to 32 KiB / 64 pkts) reducing syscalls by 2.4× (`zenith-wire`) |
-| **Defensive Cybersecurity** | `[✔ Mesuré]` | Anti-Slowloris timers, token bucket rate limiter, CIDR subnet jail, connection caps (`zenith-shield`) |
-| **3-Tier Priority Queue** | `[✔ Mesuré]` | Weight tier > Windowed FIFO > Ping tie-breaker (`zenith-transit`) |
-| **Dynamic HUD Display** | `[✔ Mesuré]` | Protocol 777 BossBar, SmallCaps Actionbar, sound cues & instant transfer (`zenith-display`) |
-| **Backend Evacuation (Soft-Drain)** | `[✔ Mesuré]` | Zero-disconnect player migration during backend maintenance (`zenith-transit`) |
-| **Totem Crash Recovery** | `[✔ Mesuré]` | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
-| **HMAC Forwarding Support** | `[✔ Mesuré]` | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
-| **Universal Seamless Transfer** | `[✔ Mesuré]` | Client-side transfer packet dispatch (`0x84 / 132`) without disconnect or loading screens (`zenith-transit`) |
-| **Horizon Turbo Fast-Path** | `[✔ Mesuré]` | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) (`zenith-totem`) |
-| **Prometheus Telemetry** | `[✔ Mesuré]` | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
-| **Synthetic Testkit & Mocks** | `[✔ Mesuré]` | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
-| **Scientific Benchmark Harness** | `[✔ Mesuré]` | Multi-scenario load testing with CPU core pinning & A/B differential microsecond latency (`zenith-bench`) |
-| **PROXY Protocol v2 Ingress** | `[✔ Mesuré]` | Binary v2 header parser & trusted proxy CIDR filtering for real client IP extraction (`zenith-wire`, `zenith-app`) |
-| **Limbo Resource Preloading** | `[✔ Mesuré]` | Background texture pack pushing & client response tracking while in queue (`zenith-wire`, `zenith-session`) |
-| **Broadcast & Alert Engine** | `[✔ Mesuré]` | Coalesced `/broadcast` announcements, screen Title `/alert` flashes, and Totem alerts (`zenith-session`, `zenith-app`) |
-| **Full Online Mojang Crypto** | `[✔ Mesuré]` | Full RSA-1024 handshake, AES-128 CFB8 stream cipher & Mojang session validation (`zenith-wire`, `zenith-session`) |
-| **Multi-Gateway Cluster** | `[⚪ Prévu]` | Federated multi-proxy coordination for massive deployments (> 10 000 concurrent players) |
+| **Zero-Chunk Dimension** | `[✔ Measured]` | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
+| **Lightweight Async Actors** | `[✔ Measured]` | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
+| **L2 Kernel Firewall Drop** | `[✔ Measured]` | OS-level Netsh/Nftables asynchronous drop for persistent malicious IPs (`zenith-shield`) |
+| **Write-Batching Relay** | `[✔ Measured]` | Grouped socket flushes (up to 32 KiB / 64 pkts) reducing syscalls by 2.4× (`zenith-wire`) |
+| **Defensive Cybersecurity** | `[✔ Measured]` | Anti-Slowloris timers, token bucket rate limiter, CIDR subnet jail, connection caps (`zenith-shield`) |
+| **3-Tier Priority Queue** | `[✔ Measured]` | Weight tier > Windowed FIFO > Ping tie-breaker (`zenith-transit`) |
+| **Dynamic HUD Display** | `[✔ Measured]` | Protocol 777 BossBar, SmallCaps Actionbar, sound cues & instant transfer (`zenith-display`) |
+| **Backend Evacuation (Soft-Drain)** | `[✔ Measured]` | Zero-disconnect player migration during backend maintenance (`zenith-transit`) |
+| **Totem Crash Recovery** | `[✔ Measured]` | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
+| **HMAC Forwarding Support** | `[✔ Measured]` | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
+| **Universal Seamless Transfer** | `[✔ Measured]` | Client-side transfer packet dispatch (`0x84 / 132`) without disconnect or loading screens (`zenith-transit`) |
+| **Horizon Turbo Fast-Path** | `[✔ Measured]` | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) (`zenith-totem`) |
+| **Prometheus Telemetry** | `[✔ Measured]` | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
+| **Synthetic Testkit & Mocks** | `[✔ Measured]` | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
+| **Scientific Benchmark Harness** | `[✔ Measured]` | Multi-scenario load testing with CPU core pinning & A/B differential microsecond latency (`zenith-bench`) |
+| **PROXY Protocol v2 Ingress** | `[✔ Measured]` | Binary v2 header parser & trusted proxy CIDR filtering for real client IP extraction (`zenith-wire`, `zenith-app`) |
+| **Limbo Resource Preloading** | `[✔ Measured]` | Background texture pack pushing & client response tracking while in queue (`zenith-wire`, `zenith-session`) |
+| **Broadcast & Alert Engine** | `[✔ Measured]` | Coalesced `/broadcast` announcements, screen Title `/alert` flashes, and Totem alerts (`zenith-session`, `zenith-app`) |
+| **Full Online Mojang Crypto** | `[✔ Measured]` | Full RSA-1024 handshake, AES-128 CFB8 stream cipher & Mojang session validation (`zenith-wire`, `zenith-session`) |
+| **Multi-Gateway Cluster** | `[⚪ Planned]` | Federated multi-proxy coordination for massive deployments (> 10 000 concurrent players) |
 
-*Status definitions: `[✔ Mesuré]` (empirically measured & verified in automated test suite), `[⏳ En cours]` (under active benchmark), `[⚪ Prévu]` (planned for large-scale deployments).*
+*Status definitions: `[✔ Measured]` (empirically measured & verified in automated test suite), `[⏳ In Progress]` (under active benchmark), `[⚪ Planned]` (planned for large-scale deployments).*
 
 ---
 

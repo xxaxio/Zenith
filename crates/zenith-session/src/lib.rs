@@ -842,7 +842,7 @@ impl<S: ConnectionStream> VirtualSession<S> {
                                     } else {
                                         // Standalone fallback (e.g. tests)
                                         if cmd.as_str() == "ping" {
-                                            let _ = self.send_system_chat(&format!("§b§lᴢᴇɴɪᴛʜ §8» §7Latence: §a{}ms", self.ping_ms)).await;
+                                            let _ = self.send_system_chat(&format!("§b§lᴢᴇɴɪᴛʜ §8» §7Latency: §a{}ms", self.ping_ms)).await;
                                         }
                                     }
                                 }
