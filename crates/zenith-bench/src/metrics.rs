@@ -13,6 +13,8 @@ pub struct Live {
     pub transferred: AtomicUsize,
     pub jailed_or_blocked: AtomicUsize,
     pub keepalives_answered: AtomicUsize,
+    pub pings_answered: AtomicUsize,
+    pub ticks_simulated: AtomicU64,
     pub errors: AtomicUsize,
     pub bytes_sent: AtomicU64,
     pub bytes_received: AtomicU64,
@@ -32,6 +34,8 @@ impl Live {
             transferred: self.transferred.load(Ordering::Relaxed),
             jailed_or_blocked: self.jailed_or_blocked.load(Ordering::Relaxed),
             keepalives_answered: self.keepalives_answered.load(Ordering::Relaxed),
+            pings_answered: self.pings_answered.load(Ordering::Relaxed),
+            ticks_simulated: self.ticks_simulated.load(Ordering::Relaxed),
             errors: self.errors.load(Ordering::Relaxed),
             bytes_sent: self.bytes_sent.load(Ordering::Relaxed),
             bytes_received: self.bytes_received.load(Ordering::Relaxed),
@@ -50,6 +54,8 @@ pub struct LiveSnapshot {
     pub transferred: usize,
     pub jailed_or_blocked: usize,
     pub keepalives_answered: usize,
+    pub pings_answered: usize,
+    pub ticks_simulated: u64,
     pub errors: usize,
     pub bytes_sent: u64,
     pub bytes_received: u64,
@@ -154,6 +160,10 @@ pub async fn fetch_zenith_prometheus_metrics(metrics_url: &str) -> Option<Promet
             if let Some(val) = line.split_whitespace().nth(1) {
                 metrics.jailed_ips = val.parse().unwrap_or(0);
             }
+        } else if line.starts_with("zenith_shield_kernel_drops_total") {
+            if let Some(val) = line.split_whitespace().nth(1) {
+                metrics.kernel_drops_total = val.parse().unwrap_or(0);
+            }
         }
     }
 
@@ -198,6 +208,7 @@ pub struct PrometheusMetrics {
     pub active_sessions: usize,
     pub queue_size: usize,
     pub jailed_ips: usize,
+    pub kernel_drops_total: u64,
 }
 
 /// Pretty-prints a summary report table to stdout.

@@ -1,5 +1,6 @@
 //! Zenith Bench: Multi-scenario high-throughput benchmarking, botnet simulations, and memory profiling CLI.
 
+mod affinity;
 mod metrics;
 mod scenarios;
 
@@ -7,11 +8,22 @@ use std::env;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
+use tracing::info;
 
 const USAGE: &str = "\
 Usage: zenith-bench <subcommand> [OPTIONS]
 
 Subcommands:
+  overhead        [target] [players] [rate] [secs] [concurrency]
+                  Differential A/B benchmark: measures baseline direct echo latency
+                  vs Zenith proxied latency and computes added microsecond overhead (P50/P95/P99).
+                  Example: zenith-bench overhead 127.0.0.1:25565 100 20 10 100
+
+  limbo-ultimate  [target] [count] [secs] [concurrency]
+                  High-fidelity real-condition benchmark: 100% protocol 777 bots ticking at 20 Hz,
+                  human jitter, /ping commands, live telemetry, and percentiles (p50/p90/p99/Max).
+                  Example: zenith-bench limbo-ultimate 127.0.0.1:25565 1000 20 200
+
   limbo-holding   [target] [count] [secs] [concurrency]
                   Holds N bots in virtual limbo void; measures RAM RSS (< 1 KiB/sess) and KeepAlive latency.
                   Example: zenith-bench limbo-holding 127.0.0.1:25565 5000 15 500
@@ -24,6 +36,12 @@ Subcommands:
                   Executes realistic cyber attacks (Slowloris, Jumbo frames, Malformed VarInt, Token flood, and multi-proxy rotation).
                   Example: zenith-bench adversary-storm 127.0.0.1:25565 500 C:\\path\\to\\proxies.txt 100
 
+  kernel-siege    [target] [attackers] [legit_count] [secs] [concurrency]
+                  Hardcore siege: multi-vector bot swarms (buffer overflow, blocked brand, flood)
+                  blasting Zenith while a canary cohort of real players plays in Limbo.
+                  Verifies 0% false positives, kernel escalation, and rock-solid latency.
+                  Example: zenith-bench kernel-siege 127.0.0.1:25565 500 20 10 150
+
   realistic-mix   [target] [total] [secs] [concurrency]
                   Production mix: 70% Vanilla + 20% Horizon Turbo + 10% Adversaries/Noise.
                   Example: zenith-bench realistic-mix 127.0.0.1:25565 2000 15 300
@@ -33,6 +51,7 @@ Subcommands:
                   Example: zenith-bench phase7 127.0.0.1:25565 1000 15 300
 
 Flags:
+  --pin-cores     [SPEC] Pin benchmark process to logical cores (e.g. 'p-cores', 'e-cores', '0-3')
   -h, --help      Display this help message
 ";
 
@@ -46,9 +65,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let args: Vec<String> = env::args().collect();
+
+    // Check for optional --pin-cores flag
+    if let Some(pos) = args.iter().position(|a| a == "--pin-cores") {
+        if let Some(spec) = args.get(pos + 1) {
+            match affinity::parse_affinity_mask(spec) {
+                Ok(mask) => {
+                    if let Err(e) = affinity::apply_process_affinity(mask) {
+                        tracing::warn!("Failed to apply CPU affinity: {}", e);
+                    } else {
+                        info!("CPU affinity pinned to mask 0x{:X} ({})", mask, spec);
+                    }
+                }
+                Err(e) => tracing::error!("Invalid --pin-cores specifier: {}", e),
+            }
+        }
+    }
+
     let subcommand = args.get(1).map(|s| s.as_str()).unwrap_or("--help");
 
     match subcommand {
+        "overhead" | "ab" => {
+            let target = args
+                .get(2)
+                .cloned()
+                .unwrap_or_else(|| "127.0.0.1:25565".to_string());
+            let players: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(100);
+            let rate: u32 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(20);
+            let secs: u64 = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(10);
+            let concurrency: usize = args.get(6).and_then(|s| s.parse().ok()).unwrap_or(players);
+
+            scenarios::run_overhead_ab(&target, players, rate, secs, concurrency).await?;
+        }
+        "limbo-ultimate" => {
+            let target = args
+                .get(2)
+                .cloned()
+                .unwrap_or_else(|| "127.0.0.1:25565".to_string());
+            let count: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(1000);
+            let secs: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(20);
+            let concurrency: usize = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(count);
+            let (host, port) = parse_host_port(&target);
+            let metrics_url = "127.0.0.1:25580";
+
+            scenarios::run_limbo_ultimate(
+                &host,
+                port,
+                metrics_url,
+                count,
+                Duration::from_secs(secs),
+                concurrency,
+                Duration::from_millis(5),
+            )
+            .await?;
+        }
         "limbo-holding" => {
             let target = args
                 .get(2)
@@ -105,6 +175,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 metrics_url,
                 count,
                 proxy_path.as_deref(),
+                concurrency,
+            )
+            .await?;
+        }
+        "kernel-siege" | "siege" => {
+            let target = args
+                .get(2)
+                .cloned()
+                .unwrap_or_else(|| "127.0.0.1:25565".to_string());
+            let attackers: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(500);
+            let legit: usize = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(20);
+            let secs: u64 = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(10);
+            let concurrency: usize = args.get(6).and_then(|s| s.parse().ok()).unwrap_or(150);
+
+            let (host, port) = parse_host_port(&target);
+            let metrics_url = "127.0.0.1:25580";
+
+            scenarios::run_kernel_siege(
+                &host,
+                port,
+                metrics_url,
+                attackers,
+                legit,
+                Duration::from_secs(secs),
                 concurrency,
             )
             .await?;

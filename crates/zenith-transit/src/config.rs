@@ -20,6 +20,9 @@ pub struct TransitConfig {
     /// Intra-tier sorting policy
     pub sorting_policy: SortingPolicy,
 
+    /// Optional arrival tolerance window in milliseconds for FIFO sorting (0 = exact timestamp, >0 = windowed)
+    pub arrival_window_ms: u64,
+
     /// Number of players dispatched per wave when backend is healthy
     pub nominal_wave_size: usize,
 
@@ -57,7 +60,8 @@ pub struct TransitConfig {
 impl Default for TransitConfig {
     fn default() -> Self {
         Self {
-            sorting_policy: SortingPolicy::PingAscending,
+            sorting_policy: SortingPolicy::Fifo,
+            arrival_window_ms: 0,
             nominal_wave_size: 10,
             nominal_interval_ms: 2000,
             target_nominal_mspt: 35.0,

@@ -21,16 +21,7 @@ pub fn build_commands_payload() -> Vec<u8> {
     });
 
     // Simple literal commands (executable directly without required arguments)
-    let simple_cmds = [
-        "transfer",
-        "join",
-        "queue",
-        "queueinfo",
-        "info",
-        "status",
-        "ping",
-        "help",
-    ];
+    let simple_cmds = ["queue", "queueinfo", "info", "status", "ping", "help"];
 
     for name in simple_cmds {
         let idx = nodes.len() as i32;
@@ -366,34 +357,6 @@ pub fn build_commands_payload() -> Vec<u8> {
             redirect: None,
             name: "message".to_string(),
             parser: Some((5, vec![2])), // 2 = greedy phrase
-            suggestions: None,
-        });
-    }
-
-    // /test <action>
-    {
-        let test_idx = nodes.len() as i32;
-        let action_arg_idx = test_idx + 1;
-        nodes.push(CommandNode {
-            kind: 1,
-            executable: false,
-            restricted: false,
-            children: vec![action_arg_idx],
-            redirect: None,
-            name: "test".to_string(),
-            parser: None,
-            suggestions: None,
-        });
-        nodes[0].children.push(test_idx);
-
-        nodes.push(CommandNode {
-            kind: 2,
-            executable: true,
-            restricted: false,
-            children: Vec::new(),
-            redirect: None,
-            name: "action".to_string(),
-            parser: Some((5, vec![0])), // 0 = single word
             suggestions: None,
         });
     }

@@ -46,12 +46,51 @@ pub enum SessionError {
     Shield(#[from] ShieldError),
     #[error("Fingerprint validation error: {0}")]
     Fingerprint(#[from] zenith_shield::FingerprintError),
+    #[error("Packet pacing error: {0}")]
+    Pacing(#[from] zenith_shield::PpsError),
     #[error("Wire protocol error: {0}")]
     Wire(#[from] WireError),
     #[error("Unexpected packet in state {state:?}: ID 0x{id:02X}")]
     UnexpectedPacket { state: SessionState, id: i32 },
     #[error("Connection closed by peer")]
     ConnectionClosed,
+}
+
+impl SessionError {
+    /// Evaluates if this error corresponds to an undisputed malicious attack warranting kernel-level drop.
+    pub fn hard_violation_reason(&self) -> Option<zenith_shield::HardViolationReason> {
+        match self {
+            SessionError::Shield(zenith_shield::ShieldError::PayloadTooLarge(sz, max)) => {
+                Some(zenith_shield::HardViolationReason::MalformedFrameOverflow {
+                    phase: match max {
+                        512 => zenith_shield::ProtocolPhase::Handshake,
+                        128 => zenith_shield::ProtocolPhase::Status,
+                        2048 => zenith_shield::ProtocolPhase::Login,
+                        32768 => zenith_shield::ProtocolPhase::Configuration,
+                        _ => zenith_shield::ProtocolPhase::Play,
+                    },
+                    size: *sz,
+                    max: *max,
+                })
+            }
+            SessionError::Fingerprint(zenith_shield::FingerprintError::BlockedBrand(brand)) => {
+                Some(zenith_shield::HardViolationReason::BlacklistedBrand {
+                    brand: brand.clone(),
+                })
+            }
+            SessionError::Pacing(zenith_shield::PpsError::RateExceeded { tokens, capacity }) => {
+                if *tokens < -50 {
+                    // Sustained burst way below exhausted capacity
+                    Some(zenith_shield::HardViolationReason::ExtremePacketFlooding {
+                        burst_count: (*capacity as i32 - *tokens) as u32,
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 /// Commands that can be dispatched to an active virtual session actor.
@@ -85,6 +124,12 @@ pub enum SessionEvent {
     PingUpdated { session_id: SessionId, ping_ms: u32 },
     /// Session ended / disconnected.
     Disconnected { session_id: SessionId },
+    /// Undisputed malicious behavior detected requiring OS firewall escalation.
+    HardViolation {
+        session_id: SessionId,
+        client_ip: Option<std::net::IpAddr>,
+        reason: zenith_shield::HardViolationReason,
+    },
 }
 
 /// A lightweight, zero-chunk virtual session actor holding a connected player.
@@ -93,11 +138,13 @@ pub struct VirtualSession<S> {
     pub state: SessionState,
     pub username: Option<String>,
     pub uuid: Option<u128>,
+    pub client_ip: Option<std::net::IpAddr>,
     pub connected_at: Instant,
     pub last_ping: Option<Instant>,
     pub ping_ms: u32,
     pub target_server: String,
     shield: ShieldedStream<S>,
+    pub pps_meter: zenith_shield::PpsMeter,
     pub fingerprint: zenith_shield::ClientFingerprint,
     pub fingerprint_config: Option<zenith_shield::FingerprintConfig>,
     pub cmd_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SessionCommand>>,
@@ -117,16 +164,28 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             state: SessionState::Handshake,
             username: None,
             uuid: None,
+            client_ip: None,
             connected_at: Instant::now(),
             last_ping: None,
             ping_ms: 0,
             target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
+            pps_meter: zenith_shield::PpsMeter::default(),
             fingerprint: zenith_shield::ClientFingerprint::default(),
             fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
             cmd_rx: None,
             event_tx: None,
         }
+    }
+
+    /// Configures the client IP address for firewall escalation tracking.
+    pub fn set_client_ip(&mut self, ip: std::net::IpAddr) {
+        self.client_ip = Some(ip);
+    }
+
+    /// Configures the packet rate limit pacing parameters.
+    pub fn set_pps_config(&mut self, config: zenith_shield::PpsConfig) {
+        self.pps_meter = zenith_shield::PpsMeter::new(config);
     }
 
     /// Spawns a new virtual session with a command channel and explicit shield limits.
@@ -140,11 +199,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
             state: SessionState::Handshake,
             username: None,
             uuid: None,
+            client_ip: None,
             connected_at: Instant::now(),
             last_ping: None,
             ping_ms: 0,
             target_server: "127.0.0.1:25566".to_string(),
             shield: ShieldedStream::new(stream, limits),
+            pps_meter: zenith_shield::PpsMeter::default(),
             fingerprint: zenith_shield::ClientFingerprint::default(),
             fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
             cmd_rx: Some(cmd_rx),
@@ -215,17 +276,35 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
 
     /// Runs the session actor to completion.
     pub async fn run(&mut self) -> Result<(), SessionError> {
-        if self.complete_handshake_and_login().await?.is_some() {
-            self.handle_limbo_loop().await?;
+        let res = match self.complete_handshake_and_login().await {
+            Ok(Some(_)) => self.handle_limbo_loop().await,
+            Ok(None) => Ok(()),
+            Err(e) => Err(e),
+        };
+
+        if let Err(ref e) = res {
+            if let Some(reason) = e.hard_violation_reason() {
+                if let Some(ref tx) = self.event_tx {
+                    let _ = tx.send(SessionEvent::HardViolation {
+                        session_id: self.id,
+                        client_ip: self.client_ip,
+                        reason,
+                    });
+                }
+            }
         }
 
         self.state = SessionState::Terminated;
-        Ok(())
+        res
     }
 
     /// Step 1: Handshake negotiation.
     async fn handle_handshake(&mut self) -> Result<(), SessionError> {
-        let (packet_id, payload) = self.shield.read_packet(false).await?;
+        let (packet_id, payload) = self
+            .shield
+            .read_packet(zenith_shield::ProtocolPhase::Handshake)
+            .await?;
+        self.pps_meter.record_packet()?;
         if packet_id != 0x00 {
             return Err(SessionError::UnexpectedPacket {
                 state: self.state,
@@ -249,7 +328,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
 
     /// Step 2a: Server list ping/status response.
     async fn handle_status(&mut self) -> Result<(), SessionError> {
-        let (req_id, _) = self.shield.read_packet(false).await?;
+        let (req_id, _) = self
+            .shield
+            .read_packet(zenith_shield::ProtocolPhase::Status)
+            .await?;
+        self.pps_meter.record_packet()?;
         if req_id != 0x00 {
             return Err(SessionError::UnexpectedPacket {
                 state: self.state,
@@ -267,7 +350,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         self.shield.write_packet(0x00, &resp_payload).await?;
 
         // Read ping packet and return pong
-        let (ping_id, ping_payload) = self.shield.read_packet(false).await?;
+        let (ping_id, ping_payload) = self
+            .shield
+            .read_packet(zenith_shield::ProtocolPhase::Status)
+            .await?;
+        self.pps_meter.record_packet()?;
         if ping_id == 0x01 {
             self.shield.write_packet(0x01, &ping_payload).await?;
         }
@@ -276,7 +363,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
 
     /// Step 2b: Login negotiation.
     async fn handle_login(&mut self) -> Result<(), SessionError> {
-        let (login_id, payload) = self.shield.read_packet(false).await?;
+        let (login_id, payload) = self
+            .shield
+            .read_packet(zenith_shield::ProtocolPhase::Login)
+            .await?;
+        self.pps_meter.record_packet()?;
         if login_id != 0x00 {
             return Err(SessionError::UnexpectedPacket {
                 state: self.state,
@@ -297,7 +388,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         self.shield.write_packet(0x02, &success.encode()).await?;
 
         // Expect Login Acknowledged (Packet ID 0x03 in Login state for 26.3)
-        let (ack_id, _) = self.shield.read_packet(false).await?;
+        let (ack_id, _) = self
+            .shield
+            .read_packet(zenith_shield::ProtocolPhase::Login)
+            .await?;
+        self.pps_meter.record_packet()?;
         if ack_id != 0x03 {
             return Err(SessionError::UnexpectedPacket {
                 state: self.state,
@@ -325,7 +420,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                     id: 0xFF,
                 });
             }
-            let (packet_id, payload) = self.shield.read_packet(false).await?;
+            let (packet_id, payload) = self
+                .shield
+                .read_packet(zenith_shield::ProtocolPhase::Configuration)
+                .await?;
+            self.pps_meter.record_packet()?;
             match packet_id {
                 0x00 => {
                     // ClientInformation (Packet ID 0x00 in Configuration)
@@ -409,19 +508,20 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         login_play.put_u8(0); // online_mode (Bool)
         login_play.put_u8(0); // Enforces secure chat (Bool)
 
-        self.shield.write_packet(50, &login_play).await?;
+        // Queue all initial Limbo join packets into a single coalesced write batch
+        self.shield.queue_packet(50, &login_play);
 
         // 2. Send GameEvent: LEVEL_CHUNKS_LOAD_START (Packet ID 39, Event 13)
         // Signals client to exit WaitingForServer and dismiss the "Loading terrain..." screen
         let mut ge = BytesMut::new();
         ge.put_u8(13); // event: LEVEL_CHUNKS_LOAD_START
         ge.put_f32(0.0); // param: 0.0
-        self.shield.write_packet(39, &ge).await?;
+        self.shield.queue_packet(39, &ge);
 
         // 3. Send ChunkBatchFinished (Packet ID 11, Batch Size 0)
         let mut cbf = BytesMut::new();
         write_varint(0, &mut cbf);
-        self.shield.write_packet(11, &cbf).await?;
+        self.shield.queue_packet(11, &cbf);
 
         // 4. Send Synchronize Player Position (Packet ID 0x49 / 73 in 26.3)
         let mut pos_payload = BytesMut::new();
@@ -435,23 +535,27 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
         pos_payload.put_f32(0.0); // Yaw
         pos_payload.put_f32(0.0); // Pitch
         pos_payload.put_i32(0); // Relative flags
-
-        self.shield.write_packet(73, &pos_payload).await?;
+        self.shield.queue_packet(73, &pos_payload);
 
         // 5. Send Commands tree (Packet ID 0x10 / 16 in 26.3) for client-side Brigadier autocompletion
         let commands_payload = commands::build_commands_payload();
-        self.shield.write_packet(16, &commands_payload).await?;
+        self.shield.queue_packet(16, &commands_payload);
 
-        // 3. Clean, concise 1-line welcome in chat
+        // 6. Clean, concise 1-line welcome in chat
         let user = self.username.clone().unwrap_or_else(|| "Player".into());
-        let _ = self
-            .send_system_chat(&format!(
-                "§b§lᴢᴇɴɪᴛʜ §8» §7Welcome §f{}§7. Please hold while waiting in queue.",
-                user
-            ))
-            .await;
+        let welcome_text = format!(
+            "§b§lᴢᴇɴɪᴛʜ §8» §7Welcome §f{}§7. Please hold while waiting in queue.",
+            user
+        );
+        let mut chat_payload = BytesMut::with_capacity(welcome_text.len() + 16);
+        zenith_wire::write_nbt_string(&welcome_text, &mut chat_payload);
+        chat_payload.put_u8(0);
+        self.shield.queue_packet(124, &chat_payload);
 
-        // 4. Heartbeat loop: maintain session with periodic KeepAlive and handle commands
+        // Flush the entire Limbo entry burst in ONE single TCP write syscall
+        self.shield.flush_batch().await?;
+
+        // 7. Heartbeat loop: maintain session with periodic KeepAlive and handle commands
         let mut keepalive_timer = tokio::time::interval(Duration::from_secs(5));
         let mut keepalive_counter: i64 = 1000;
 
@@ -484,24 +588,30 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                             times_payload.put_i32(10);
                             times_payload.put_i32(70);
                             times_payload.put_i32(20);
-                            self.shield.write_packet(117, &times_payload).await?;
+                            self.shield.queue_packet(117, &times_payload);
 
                             // 2. Title (Packet ID 116)
                             let mut title_payload = BytesMut::with_capacity(title.len() + 8);
                             zenith_wire::write_nbt_string(&title, &mut title_payload);
-                            self.shield.write_packet(116, &title_payload).await?;
+                            self.shield.queue_packet(116, &title_payload);
 
                             // 3. Optional subtitle (Packet ID 114)
                             if let Some(sub) = subtitle {
                                 let mut sub_payload = BytesMut::with_capacity(sub.len() + 8);
                                 zenith_wire::write_nbt_string(&sub, &mut sub_payload);
-                                self.shield.write_packet(114, &sub_payload).await?;
+                                self.shield.queue_packet(114, &sub_payload);
                             }
 
                             // 4. System chat message (Packet ID 124)
                             if !chat.is_empty() {
-                                let _ = self.send_system_chat(&chat).await;
+                                let mut chat_payload = BytesMut::with_capacity(chat.len() + 16);
+                                zenith_wire::write_nbt_string(&chat, &mut chat_payload);
+                                chat_payload.put_u8(0);
+                                self.shield.queue_packet(124, &chat_payload);
                             }
+
+                            // Coalesce alert broadcast into a single socket write
+                            self.shield.flush_batch().await?;
                         }
                         Some(SessionCommand::Close) | None => {
                             if let Some(ref tx) = self.event_tx {
@@ -517,9 +627,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                     self.last_ping = Some(Instant::now());
                     self.shield.write_packet(45, &ka.encode()).await?;
                 }
-                res = self.shield.read_packet(true) => {
+                res = self.shield.read_packet(zenith_shield::ProtocolPhase::Play) => {
                     match res {
                         Ok((id, payload)) => {
+                            self.pps_meter.record_packet()?;
                             if id == 28 { // KeepAlive response
                                 if let Ok(resp) = KeepAlive::decode(&payload) {
                                     if resp.id == keepalive_counter {
@@ -567,24 +678,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> VirtualSession<S> {
                                         });
                                     } else {
                                         // Standalone fallback (e.g. tests)
-                                        match cmd.as_str() {
-                                            "transfer" | "join" | "play" => {
-                                                let target = self.target_server.clone();
-                                                let (host, port) = match target.split_once(':') {
-                                                    Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(25565)),
-                                                    None => (target.clone(), 25565),
-                                                };
-                                                let mut payload = BytesMut::new();
-                                                write_string(&host, &mut payload);
-                                                write_varint(port as i32, &mut payload);
-                                                self.shield.write_packet(132, &payload).await?;
-                                                tokio::time::sleep(Duration::from_millis(50)).await;
-                                                return Ok(());
-                                            }
-                                            "ping" => {
-                                                let _ = self.send_system_chat(&format!("§b§lᴢᴇɴɪᴛʜ §8» §7Latence: §a{}ms", self.ping_ms)).await;
-                                            }
-                                            _ => {}
+                                        if cmd.as_str() == "ping" {
+                                            let _ = self.send_system_chat(&format!("§b§lᴢᴇɴɪᴛʜ §8» §7Latence: §a{}ms", self.ping_ms)).await;
                                         }
                                     }
                                 }

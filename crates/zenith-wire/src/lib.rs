@@ -12,6 +12,9 @@ pub use hmac::HmacForwarding;
 pub mod proxy;
 pub use proxy::{PROXY_V2_MAGIC, ProxyCommand, ProxyError, ProxyHeader, is_trusted_proxy};
 
+pub mod batch;
+pub use batch::{DEFAULT_MAX_BATCH_BYTES, DEFAULT_MAX_BATCH_PACKETS, PacketBatchWriter};
+
 /// Wire protocol errors.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum WireError {

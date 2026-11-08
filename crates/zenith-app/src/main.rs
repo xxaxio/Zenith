@@ -7,6 +7,7 @@ use config::ZenithConfig;
 use metrics::{ZenithMetrics, start_metrics_server};
 use std::collections::HashMap;
 use std::env;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -21,7 +22,9 @@ use zenith_display::{
 };
 use zenith_session::{SessionCommand, SessionEvent, SessionId, VirtualSession};
 use zenith_shield::{
-    ConnectionTracker, FingerprintConfig, IpRateLimiter, RateLimitConfig, ShieldLimits,
+    ConnectionTracker, FingerprintConfig, FirewallBackend, FirewallManager, IpRateLimiter,
+    IpsetBackend, NftablesBackend, NoopFirewall, RateLimitConfig, ShieldLimits,
+    WindowsNetshBackend,
 };
 use zenith_totem::{
     BackendHealth, HorizonTurboClient, TotemConfig, TotemEvent, TotemLifeline, TurboEndpoint,
@@ -66,7 +69,10 @@ struct CommandContext {
     hud: Arc<HudRenderer>,
     health_rx: tokio::sync::watch::Receiver<BackendHealth>,
     totem_enabled: bool,
+    #[allow(dead_code)]
     hmac_forwarding: Option<HmacForwarding>,
+    firewall: Arc<FirewallManager>,
+    metrics: Arc<ZenithMetrics>,
 }
 
 #[tokio::main]
@@ -215,6 +221,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // Kernel-Level Packet Filter & OS Firewall Synchronizer
+    let firewall_backend: Arc<dyn FirewallBackend> =
+        match config.shield.firewall.backend.to_lowercase().as_str() {
+            "nftables" => {
+                let be = NftablesBackend::new("zenith_filter", "blacklist_v4", "blacklist_v6");
+                let _ = be.initialize();
+                Arc::new(be)
+            }
+            "ipset" => {
+                let be = IpsetBackend::new("zenith_blacklist");
+                let _ = be.initialize();
+                Arc::new(be)
+            }
+            "netsh" | "windows" => Arc::new(WindowsNetshBackend::new()),
+            "noop" => Arc::new(NoopFirewall::new()),
+            _ => {
+                #[cfg(target_os = "linux")]
+                {
+                    let be = NftablesBackend::new("zenith_filter", "blacklist_v4", "blacklist_v6");
+                    let _ = be.initialize();
+                    Arc::new(be)
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    Arc::new(WindowsNetshBackend::new())
+                }
+                #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+                {
+                    Arc::new(NoopFirewall::new())
+                }
+            }
+        };
+
+    let firewall_duration = Duration::from_secs(config.shield.firewall.jail_duration_secs);
+    let firewall_manager = Arc::new(FirewallManager::new(
+        firewall_backend,
+        config.shield.enabled && config.shield.firewall.enabled,
+        firewall_duration,
+    ));
+
+    // Protect trusted proxies and loopback from OS firewall rules
+    for proxy in &config.proxy.trusted_proxies {
+        if let Ok(ip) = proxy.parse::<IpAddr>() {
+            firewall_manager.add_whitelist(ip);
+        }
+    }
+
+    if config.shield.firewall.enabled {
+        info!(
+            backend = firewall_manager.backend_name(),
+            duration_secs = config.shield.firewall.jail_duration_secs,
+            "Kernel-Level packet filter (OS Firewall) synchronization active"
+        );
+    }
+
     // Horizon Native Turbo Fast-Path (full-Rust IPC ctl.sock telemetry & pre-warming)
     let turbo_client = if config.turbo.enabled {
         let ep = config
@@ -244,8 +305,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
+    let sorting_policy = match config.queue.sorting.to_lowercase().as_str() {
+        "ping" | "ping_asc" => SortingPolicy::PingAscending,
+        "ping_desc" => SortingPolicy::PingDescending,
+        _ => SortingPolicy::Fifo,
+    };
+
     let transit_config = TransitConfig {
-        sorting_policy: SortingPolicy::PingAscending,
+        sorting_policy,
+        arrival_window_ms: config.queue.arrival_window_ms,
         nominal_wave_size: wave_size,
         nominal_interval_ms: wave_interval_ms,
         ..Default::default()
@@ -578,6 +646,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         health_rx: cmd_health_rx,
         totem_enabled: config.totem.enabled,
         hmac_forwarding,
+        firewall: Arc::clone(&firewall_manager),
+        metrics: Arc::clone(&metrics),
     });
 
     let loop_ctx = Arc::clone(&cmd_context);
@@ -602,6 +672,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     loop_ctx.queue.lock().await.remove(session_id);
                     loop_ctx.sessions.lock().await.remove(&session_id);
                 }
+                SessionEvent::HardViolation {
+                    session_id: _,
+                    client_ip,
+                    reason,
+                } => {
+                    if let Some(ip) = client_ip {
+                        loop_ctx
+                            .metrics
+                            .shield_kernel_drops_total
+                            .fetch_add(1, Ordering::Relaxed);
+                        loop_ctx.firewall.escalate(ip, reason).await;
+                    }
+                }
             }
         }
     });
@@ -617,7 +700,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         enabled: config.shield.enabled && config.shield.fingerprint.enabled,
         require_client_info: config.shield.fingerprint.require_client_info,
         min_view_distance: config.shield.fingerprint.min_view_distance,
-        max_view_distance: config.shield.fingerprint.max_view_distance,
         require_brand: config.shield.fingerprint.require_brand,
         blocked_brands: config.shield.fingerprint.blocked_brands.clone(),
     };
@@ -718,6 +800,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let event_tx_clone = event_tx.clone();
         let task_metrics = Arc::clone(&loop_metrics);
         let task_fp_config = fp_config.clone();
+        let task_fw = Arc::clone(&firewall_manager);
 
         tokio::spawn(async move {
             let _guard = _conn_guard;
@@ -727,6 +810,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut session =
                 VirtualSession::with_command_channel(socket, ShieldLimits::default(), cmd_rx);
             session.set_target_server(target_clone.clone());
+            session.set_client_ip(client_ip);
             session.set_event_sender(event_tx_clone);
             session.set_fingerprint_config(task_fp_config);
 
@@ -799,6 +883,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Run the limbo loop
                     if let Err(e) = session.handle_limbo_loop().await {
                         error!(session = ?session_id, error = %e, "Limbo session terminated with error");
+                        if let Some(reason) = e.hard_violation_reason() {
+                            task_metrics
+                                .shield_kernel_drops_total
+                                .fetch_add(1, Ordering::Relaxed);
+                            task_fw.escalate(client_ip, reason).await;
+                        }
                     } else {
                         info!(session = ?session_id, player = %username, "Limbo session closed cleanly");
                     }
@@ -812,6 +902,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Err(e) => {
                     debug!(error = %e, "Handshake/Login ended (client disconnect or ping)");
+                    if let Some(reason) = e.hard_violation_reason() {
+                        task_metrics
+                            .shield_kernel_drops_total
+                            .fetch_add(1, Ordering::Relaxed);
+                        task_fw.escalate(client_ip, reason).await;
+                    }
                 }
             }
             task_metrics.active_sessions.fetch_sub(1, Ordering::Relaxed);
@@ -834,63 +930,13 @@ async fn handle_command(
         s.get(&session_id)
             .map(|(tx, _, uuid, _, _)| (tx.clone(), *uuid))
     };
-    let Some((tx, player_uuid)) = session_data else {
+    let Some((tx, _player_uuid)) = session_data else {
         return;
     };
 
     let is_staff = ctx.group_mgr.lock().await.is_staff(username);
 
     match cmd {
-        "transfer" | "join" | "play" => {
-            if !is_staff {
-                let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to manually transfer. Please wait in queue.",
-                    false,
-                );
-                let _ = tx.send(SessionCommand::SendRaw(msg));
-                return;
-            }
-
-            let current_health = ctx.health_rx.borrow().clone();
-            if ctx.totem_enabled && !current_health.is_available() {
-                let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cTarget server is currently unavailable (restarting). You are protected in queue!",
-                    false,
-                );
-                let _ = tx.send(SessionCommand::SendRaw(msg));
-                return;
-            }
-
-            if let Some(ref hmac) = ctx.hmac_forwarding {
-                let now_secs = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-                let token = hmac.create_transit_token(player_uuid, username, now_secs);
-                tracing::info!(
-                    player = %username,
-                    token = ?token,
-                    "HMAC transit token generated for player transfer"
-                );
-            }
-
-            let (host, port) = match ctx.target_server.split_once(':') {
-                Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(25565)),
-                None => (ctx.target_server.clone(), 25565),
-            };
-
-            let (sound_opt, transfer_pkt) = ctx.hud.render_transfer(&host, port);
-            if let Some(snd) = sound_opt {
-                let _ = tx.send(SessionCommand::SendRaw(snd));
-            }
-            let msg = encode_system_chat_packet(
-                &format!("§b§lᴢᴇɴɪᴛʜ §8» §aTransfert vers §e{}:{}§a...", host, port),
-                false,
-            );
-            let _ = tx.send(SessionCommand::SendRaw(msg));
-            let _ = tx.send(SessionCommand::SendRaw(transfer_pkt));
-            let _ = tx.send(SessionCommand::Transfer { host, port });
-        }
         "queue" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
@@ -1549,66 +1595,6 @@ async fn handle_command(
             }
             info!(by = %username, alert = %alert_text, "Staff alert sent to all players");
         }
-        "test" => {
-            if !is_staff {
-                let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to run simulation tests.",
-                    false,
-                );
-                let _ = tx.send(SessionCommand::SendRaw(msg));
-                return;
-            }
-
-            let subcmd = args.first().map(|s| s.as_str()).unwrap_or("");
-            match subcmd {
-                "crash" => {
-                    let times = encode_title_times_packet(5, 50, 15);
-                    let sub =
-                        encode_subtitle_packet("§c§lBACKEND RESTARTING §7Recovery in progress...");
-                    let title = encode_title_packet("§c⚠");
-                    let chat = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
-                        false,
-                    );
-
-                    let sess = ctx.sessions.lock().await;
-                    for (s_tx, _, _, _, _) in sess.values() {
-                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
-                    }
-                    info!(by = %username, "Simulated Totem backend crash alert triggered");
-                }
-                "recovery" | "recover" => {
-                    let times = encode_title_times_packet(5, 50, 15);
-                    let sub = encode_subtitle_packet(
-                        "§a§lBACKEND READY §7Resuming automatic transfers...",
-                    );
-                    let title = encode_title_packet("§a▶");
-                    let chat = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §a§lBACKEND ONLINE! §7Ping: §e18ms§7. Preparing transfers...",
-                        false,
-                    );
-
-                    let sess = ctx.sessions.lock().await;
-                    for (s_tx, _, _, _, _) in sess.values() {
-                        let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(sub.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(title.clone()));
-                        let _ = s_tx.send(SessionCommand::SendRaw(chat.clone()));
-                    }
-                    info!(by = %username, "Simulated Totem backend recovery alert triggered");
-                }
-                _ => {
-                    let msg = encode_system_chat_packet(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /test <crash | recovery>",
-                        false,
-                    );
-                    let _ = tx.send(SessionCommand::SendRaw(msg));
-                }
-            }
-        }
         "ping" => {
             let ping = ctx.queue.lock().await.ping_of(session_id).unwrap_or(0);
             let display_ping = if ping == 0 {
@@ -1648,10 +1634,6 @@ async fn handle_command(
 
             if is_staff {
                 let m_head = encode_system_chat_packet("§c§l  Staff Commands:", false);
-                let m_trans = encode_system_chat_packet(
-                    "  §c/transfer      §8- §7Force instant transfer to target backend",
-                    false,
-                );
                 let m_stat = encode_system_chat_packet(
                     "  §c/status        §8- §7View backend server health and latency",
                     false,
@@ -1677,7 +1659,6 @@ async fn handle_command(
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(m_head));
-                let _ = tx.send(SessionCommand::SendRaw(m_trans));
                 let _ = tx.send(SessionCommand::SendRaw(m_stat));
                 let _ = tx.send(SessionCommand::SendRaw(m_staff));
                 let _ = tx.send(SessionCommand::SendRaw(m_skip));

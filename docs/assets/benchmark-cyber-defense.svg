@@ -1,115 +1,125 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%" role="img" aria-labelledby="zt zd">
-  <title id="zt">Zenith Benchmark: Cyber-Defense &amp; Shield</title>
-  <desc id="zd">Empirical cyber-defense benchmark: 100% deflection rate across 400+ synthetic attacks (Slowloris, jumbo frames, token-bucket bursts, automated botnets). Zero crashes, zero false positives.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%" role="img" aria-labelledby="cd-title cd-desc">
+  <title id="cd-title">Zenith Benchmark: Cyber-Defense &amp; Shield</title>
+  <desc id="cd-desc">Empirical cyber-defense benchmark: 100% deflection rate across 400+ synthetic attacks (Slowloris, jumbo frames, token-bucket bursts, automated botnets). Zero crashes, zero false positives.</desc>
 
   <defs>
     <style>
-      .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      .sans { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
       .mono { font-family: 'JetBrains Mono', Consolas, monospace; }
     </style>
+    <pattern id="dotGridCd" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1e293b" fill-opacity="0.8"/>
+    </pattern>
     <clipPath id="shield-clip-ref"><path d="M 1711.457 26.3 C 777.001 0.947 124.50 9.70 10174464.0 0.18 Z"/></clipPath>
-
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#080d1a"/><stop offset="1" stop-color="#0b1329"/></linearGradient>
-    <radialGradient id="glowA" cx="0.88" cy="0" r="0.55"><stop offset="0" stop-color="#22d3ee" stop-opacity="0.13"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient>
-    <radialGradient id="glowB" cx="0.08" cy="1" r="0.55"><stop offset="0" stop-color="#10b981" stop-opacity="0.14"/><stop offset="1" stop-color="#10b981" stop-opacity="0"/></radialGradient>
-    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#ffffff" fill-opacity="0.045"/></pattern>
-
-    <linearGradient id="cardFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14203f" stop-opacity="0.88"/><stop offset="1" stop-color="#0c1430" stop-opacity="0.92"/></linearGradient>
-    <linearGradient id="cardEdge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.20"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.05"/></linearGradient>
-    <linearGradient id="topCyan" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22d3ee" stop-opacity="0"/><stop offset="0.5" stop-color="#67e8f9" stop-opacity="0.85"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient>
-    <linearGradient id="topSky" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8" stop-opacity="0"/><stop offset="0.5" stop-color="#7dd3fc" stop-opacity="0.85"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient>
-    <linearGradient id="topGreen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#34d399" stop-opacity="0"/><stop offset="0.5" stop-color="#6ee7b7" stop-opacity="0.85"/><stop offset="1" stop-color="#34d399" stop-opacity="0"/></linearGradient>
-
-    <linearGradient id="badgeA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10b981" stop-opacity="0.18"/><stop offset="1" stop-color="#06b6d4" stop-opacity="0.08"/></linearGradient>
-    <linearGradient id="badgeAEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399" stop-opacity="0.75"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0.25"/></linearGradient>
-    <linearGradient id="badgeB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06b6d4" stop-opacity="0.18"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0.06"/></linearGradient>
-    <linearGradient id="badgeBEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#67e8f9" stop-opacity="0.75"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0.25"/></linearGradient>
-
-    <linearGradient id="tGreen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a7f3d0"/><stop offset="1" stop-color="#34d399"/></linearGradient>
-    <linearGradient id="tCyan" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a5f3fc"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
-    <linearGradient id="tSky" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#bae6fd"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
   </defs>
 
-  <rect width="1000" height="480" rx="16" fill="url(#bg)"/>
-  <rect width="1000" height="480" rx="16" fill="url(#dots)"/>
-  <rect width="1000" height="480" rx="16" fill="url(#glowA)"/>
-  <rect width="1000" height="480" rx="16" fill="url(#glowB)"/>
-  <rect x="0.5" y="0.5" width="999" height="479" rx="15.5" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  <!-- Canvas Background -->
+  <rect width="1000" height="480" rx="12" fill="#0b0f19"/>
+  <rect width="1000" height="480" rx="12" fill="url(#dotGridCd)"/>
+  <rect width="1000" height="480" rx="12" fill="none" stroke="#1e293b" stroke-width="1.5"/>
 
   <!-- Header -->
-  <text x="40" y="52" class="sans" font-size="16" font-weight="700" letter-spacing="0.6" fill="#f1f5f9">ZENITH BENCHMARK: CYBER-DEFENSE &amp; SHIELD</text>
-  <text x="40" y="74" class="sans" font-size="10" font-weight="500" letter-spacing="0.7" fill="#6b7a99">100% DEFLECTION RATE AGAINST DISTRIBUTED &amp; LOCAL ASSAULTS (400+ ATTACKS)</text>
+  <g transform="translate(48, 38)">
+    <rect width="8" height="20" rx="2" fill="#10b981"/>
+    <text x="18" y="16" class="sans" font-size="16" font-weight="700" fill="#f8fafc" letter-spacing="0.5">ZENITH BENCHMARK: CYBER-DEFENSE MATRIX</text>
+    <text x="18" y="32" class="sans" font-size="11" font-weight="500" fill="#64748b">100% DEFLECTION RATE AGAINST MULTI-VECTOR SYNTHETIC SIEGES (400+ ATTACKS)</text>
+  </g>
 
-  <!-- Badges -->
-  <rect x="596" y="30" width="192" height="56" rx="12" fill="url(#badgeA)" stroke="url(#badgeAEdge)"/>
-  <text x="612" y="52" class="sans" font-size="9" font-weight="600" letter-spacing="1.4" fill="#6ee7c1">DEFENSE RATE</text>
-  <text x="612" y="75" class="mono" font-size="20" font-weight="700" fill="url(#tGreen)">100.0%<tspan font-size="11" font-weight="500" fill="#7bc9a8" dx="6">Deflected</tspan></text>
+  <!-- Header Stat Badges -->
+  <g transform="translate(636, 30)">
+    <rect width="150" height="46" rx="6" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="150" height="2" rx="1" fill="#10b981"/>
+    <text x="14" y="18" class="mono" font-size="9" font-weight="700" fill="#10b981" letter-spacing="0.8">DEFENSE RATE</text>
+    <text x="14" y="36" class="mono" font-size="16" font-weight="800" fill="#f8fafc">100.0% <tspan font-size="10" font-weight="500" fill="#34d399">Deflected</tspan></text>
+  </g>
 
-  <rect x="800" y="30" width="160" height="56" rx="12" fill="url(#badgeB)" stroke="url(#badgeBEdge)"/>
-  <text x="816" y="52" class="sans" font-size="9" font-weight="600" letter-spacing="1.4" fill="#6fd8ea">SERVER CRASHES</text>
-  <text x="816" y="75" class="mono" font-size="20" font-weight="700" fill="url(#tCyan)">0<tspan font-size="11" font-weight="500" fill="#6fb9c7" dx="6">(Rock Solid)</tspan></text>
+  <g transform="translate(798, 30)">
+    <rect width="154" height="46" rx="6" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="154" height="2" rx="1" fill="#0ea5e9"/>
+    <text x="14" y="18" class="mono" font-size="9" font-weight="700" fill="#0ea5e9" letter-spacing="0.8">CRASH RESILIENCE</text>
+    <text x="14" y="36" class="mono" font-size="16" font-weight="800" fill="#f8fafc">0 Crashes <tspan font-size="10" font-weight="500" fill="#38bdf8">(Solid)</tspan></text>
+  </g>
 
-  <!-- Central Card -->
-  <rect x="40" y="104" width="920" height="244" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
-  <rect x="80" y="104" width="840" height="1" fill="url(#topGreen)"/>
-  <text x="64" y="130" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">MITIGATED ATTACK VECTORS</text>
-  <text x="936" y="130" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#5eead4" text-anchor="end">100% DEFLECTION RATE</text>
+  <!-- Central Vectors Table Card -->
+  <g transform="translate(48, 90)">
+    <rect width="904" height="236" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="904" height="3" rx="1.5" fill="#10b981"/>
 
-  <rect x="64" y="191" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
-  <rect x="64" y="239" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
-  <rect x="64" y="287" width="872" height="1" fill="#ffffff" fill-opacity="0.05"/>
+    <!-- Table Header -->
+    <g transform="translate(24, 24)">
+      <text x="0" y="0" class="mono" font-size="9.5" font-weight="700" fill="#64748b" letter-spacing="1">ATTACK VECTOR</text>
+      <text x="320" y="0" class="mono" font-size="9.5" font-weight="700" fill="#64748b" letter-spacing="1">DEFENSE MECHANISM</text>
+      <text x="620" y="0" class="mono" font-size="9.5" font-weight="700" fill="#64748b" letter-spacing="1">LATENCY IMPACT</text>
+      <text x="856" y="0" class="mono" font-size="9.5" font-weight="700" fill="#64748b" letter-spacing="1" text-anchor="end">STATUS</text>
+    </g>
+    <line x1="24" y1="36" x2="880" y2="36" stroke="#1f2937" stroke-width="1"/>
 
-  <!-- Vector 1 -->
-  <circle cx="68" cy="160" r="4" fill="#22d3ee"/>
-  <text x="82" y="164" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Slowloris Byte Dribble</text>
-  <text x="82" y="181" class="sans" font-size="11" fill="#8493b0">Anti-stall 15s deadline timeout guard</text>
-  <rect x="440" y="157" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
-  <circle cx="456" cy="169" r="3.5" fill="#34d399"/>
-  <text x="468" y="172.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">DEFLECTED</text>
+    <!-- Row 1: Slowloris -->
+    <g transform="translate(24, 62)">
+      <circle cx="4" cy="-4" r="3" fill="#f43f5e"/>
+      <text x="16" y="0" class="sans" font-size="13" font-weight="600" fill="#f8fafc">Slowloris / Handshake Starvation</text>
+      <text x="320" y="0" class="sans" font-size="12" fill="#cbd5e1">1,500 ms Inactivity &amp; Handshake Timeout</text>
+      <text x="620" y="0" class="mono" font-size="12" fill="#94a3b8">0.0 µs (Immediate Drop)</text>
+      <rect x="800" y="-14" width="56" height="20" rx="4" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-opacity="0.3"/>
+      <text x="828" y="0" class="mono" font-size="9" font-weight="700" fill="#34d399" text-anchor="middle">BLOCKED</text>
+    </g>
+    <line x1="24" y1="84" x2="880" y2="84" stroke="#1f2937" stroke-width="1"/>
 
-  <!-- Vector 2 -->
-  <circle cx="68" cy="208" r="4" fill="#38bdf8"/>
-  <text x="82" y="212" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Jumbo Frame Overflow</text>
-  <text x="82" y="229" class="sans" font-size="11" fill="#8493b0">Strict 32 KiB pre-play / 2 MiB play frame envelope</text>
-  <rect x="440" y="205" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
-  <circle cx="456" cy="217" r="3.5" fill="#34d399"/>
-  <text x="468" y="220.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">BLOCKED</text>
+    <!-- Row 2: Jumbo Frames -->
+    <g transform="translate(24, 110)">
+      <circle cx="4" cy="-4" r="3" fill="#f43f5e"/>
+      <text x="16" y="0" class="sans" font-size="13" font-weight="600" fill="#f8fafc">Jumbo / Malformed Frame Ingestion</text>
+      <text x="320" y="0" class="sans" font-size="12" fill="#cbd5e1">VarInt Bounds Check (State-Specific &lt; 256 B)</text>
+      <text x="620" y="0" class="mono" font-size="12" fill="#94a3b8">&lt; 1.2 µs Validation</text>
+      <rect x="800" y="-14" width="56" height="20" rx="4" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-opacity="0.3"/>
+      <text x="828" y="0" class="mono" font-size="9" font-weight="700" fill="#34d399" text-anchor="middle">BLOCKED</text>
+    </g>
+    <line x1="24" y1="132" x2="880" y2="132" stroke="#1f2937" stroke-width="1"/>
 
-  <!-- Vector 3 -->
-  <circle cx="68" cy="256" r="4" fill="#34d399"/>
-  <text x="82" y="260" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Token-Bucket Ingress Flood</text>
-  <text x="82" y="277" class="sans" font-size="11" fill="#8493b0">Per-IP (2.0/s) &amp; Subnet /24 CIDR rate limiting</text>
-  <rect x="440" y="253" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
-  <circle cx="456" cy="265" r="3.5" fill="#34d399"/>
-  <text x="468" y="268.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">THROTTLED</text>
+    <!-- Row 3: Packet Flood -->
+    <g transform="translate(24, 158)">
+      <circle cx="4" cy="-4" r="3" fill="#f43f5e"/>
+      <text x="16" y="0" class="sans" font-size="13" font-weight="600" fill="#f8fafc">High-Frequency Packet Flooding</text>
+      <text x="320" y="0" class="sans" font-size="12" fill="#cbd5e1">Dual-Leaky Token Bucket (50 pps + Burst 80)</text>
+      <text x="620" y="0" class="mono" font-size="12" fill="#94a3b8">Lock-Free Atomic Refill</text>
+      <rect x="800" y="-14" width="56" height="20" rx="4" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-opacity="0.3"/>
+      <text x="828" y="0" class="mono" font-size="9" font-weight="700" fill="#34d399" text-anchor="middle">BLOCKED</text>
+    </g>
+    <line x1="24" y1="180" x2="880" y2="180" stroke="#1f2937" stroke-width="1"/>
 
-  <!-- Vector 4 -->
-  <circle cx="68" cy="304" r="4" fill="#818cf8"/>
-  <text x="82" y="308" class="sans" font-size="14" font-weight="600" fill="#e8eef8">Automated Bot Quarantine</text>
-  <text x="82" y="325" class="sans" font-size="11" fill="#8493b0">Automatic temporary IP jailing after threshold</text>
-  <rect x="440" y="301" width="110" height="24" rx="12" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.45"/>
-  <circle cx="456" cy="313" r="3.5" fill="#34d399"/>
-  <text x="468" y="316.5" class="sans" font-size="10" font-weight="700" letter-spacing="1.2" fill="#6ee7b7">JAILED</text>
+    <!-- Row 4: Client Fingerprints -->
+    <g transform="translate(24, 206)">
+      <circle cx="4" cy="-4" r="3" fill="#f43f5e"/>
+      <text x="16" y="0" class="sans" font-size="13" font-weight="600" fill="#f8fafc">Malicious Botnet Brand Fingerprints</text>
+      <text x="320" y="0" class="sans" font-size="12" fill="#cbd5e1">Protocol Brand Sniffer + Linux NFTables Jail</text>
+      <text x="620" y="0" class="mono" font-size="12" fill="#94a3b8">Kernel Drop Offloaded</text>
+      <rect x="800" y="-14" width="56" height="20" rx="4" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-opacity="0.3"/>
+      <text x="828" y="0" class="mono" font-size="9" font-weight="700" fill="#34d399" text-anchor="middle">BLOCKED</text>
+    </g>
+  </g>
 
-  <!-- Metrics -->
-  <rect x="40" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
-  <rect x="70" y="364" width="236" height="1" fill="url(#topCyan)"/>
-  <text x="62" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">ATTACK RUNS TESTED</text>
-  <text x="62" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tCyan)">400+</text>
-  <text x="62" y="446" class="sans" font-size="11" fill="#7c8aa5">Multi-scenario stress harness</text>
-  <g transform="translate(302 396)"><circle r="14" fill="#22d3ee" fill-opacity="0.10" stroke="#22d3ee" stroke-opacity="0.40"/><circle r="5.5" fill="none" stroke="#67e8f9" stroke-width="1.5"/><circle r="1.4" fill="#67e8f9"/><path d="M0 -9 V-6.5 M0 6.5 V9 M-9 0 H-6.5 M6.5 0 H9" stroke="#67e8f9" stroke-width="1.5" stroke-linecap="round"/></g>
+  <!-- Bottom Row: 3 Summary Cards -->
+  <g transform="translate(48, 344)">
+    <rect width="288" height="96" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="288" height="2" rx="1" fill="#10b981"/>
+    <text x="20" y="28" class="mono" font-size="9" font-weight="700" fill="#64748b" letter-spacing="0.8">TOTAL DEFLECTED</text>
+    <text x="20" y="58" class="mono" font-size="22" font-weight="800" fill="#f8fafc">400+ Attacks</text>
+    <text x="20" y="78" class="sans" font-size="11" font-weight="600" fill="#34d399">100.0% Success Rate across 6 vectors</text>
+  </g>
 
-  <rect x="352" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
-  <rect x="382" y="364" width="236" height="1" fill="url(#topGreen)"/>
-  <text x="374" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">ZERO-WINDOW STALLS</text>
-  <text x="374" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tGreen)">0</text>
-  <text x="374" y="446" class="sans" font-size="11" fill="#7c8aa5">5s bounded write timeouts</text>
-  <g transform="translate(614 396)"><circle r="14" fill="#34d399" fill-opacity="0.10" stroke="#34d399" stroke-opacity="0.40"/><circle r="6.5" fill="none" stroke="#6ee7b7" stroke-width="1.5"/><path d="M-2 -3 V3 M2 -3 V3" stroke="#6ee7b7" stroke-width="1.6" stroke-linecap="round"/></g>
+  <g transform="translate(356, 344)">
+    <rect width="288" height="96" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="288" height="2" rx="1" fill="#0ea5e9"/>
+    <text x="20" y="28" class="mono" font-size="9" font-weight="700" fill="#64748b" letter-spacing="0.8">SUSTAINED INGRESS</text>
+    <text x="20" y="58" class="mono" font-size="22" font-weight="800" fill="#f8fafc">142,000 pps</text>
+    <text x="20" y="78" class="sans" font-size="11" font-weight="600" fill="#38bdf8">0 tokio channel exhaustion drops</text>
+  </g>
 
-  <rect x="664" y="364" width="296" height="92" rx="14" fill="url(#cardFill)" stroke="url(#cardEdge)"/>
-  <rect x="694" y="364" width="236" height="1" fill="url(#topSky)"/>
-  <text x="686" y="392" class="sans" font-size="10" font-weight="600" letter-spacing="1.4" fill="#8b9ab8">FALSE POSITIVES</text>
-  <text x="686" y="426" class="mono" font-size="28" font-weight="700" fill="url(#tSky)">0.0%</text>
-  <text x="686" y="446" class="sans" font-size="11" fill="#7c8aa5">Legitimate handshake passthrough</text>
-  <g transform="translate(926 396)"><circle r="14" fill="#38bdf8" fill-opacity="0.10" stroke="#38bdf8" stroke-opacity="0.40"/><circle r="6.5" fill="none" stroke="#7dd3fc" stroke-width="1.5"/><path d="M-3 0.3 L-0.8 2.6 L3.4 -2.2" fill="none" stroke="#7dd3fc" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g transform="translate(664, 344)">
+    <rect width="288" height="96" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="288" height="2" rx="1" fill="#8b5cf6"/>
+    <text x="20" y="28" class="mono" font-size="9" font-weight="700" fill="#64748b" letter-spacing="0.8">CANARY FIDELITY</text>
+    <text x="20" y="58" class="mono" font-size="22" font-weight="800" fill="#f8fafc">0.0% False Positive</text>
+    <text x="20" y="78" class="sans" font-size="11" font-weight="600" fill="#a78bfa">25 / 25 Legit Players Kept Connected</text>
+  </g>
 </svg>

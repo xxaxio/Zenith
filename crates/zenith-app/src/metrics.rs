@@ -19,6 +19,7 @@ pub struct ZenithMetrics {
     pub shield_rate_limited_total: AtomicU64,
     pub shield_jailed_ips: AtomicUsize,
     pub shield_challenges_failed_total: AtomicU64,
+    pub shield_kernel_drops_total: AtomicU64,
 }
 
 impl ZenithMetrics {
@@ -114,8 +115,17 @@ impl ZenithMetrics {
         );
         out.push_str("# TYPE zenith_shield_challenges_failed_total counter\n");
         out.push_str(&format!(
-            "zenith_shield_challenges_failed_total {}\n",
+            "zenith_shield_challenges_failed_total {}\n\n",
             self.shield_challenges_failed_total.load(Ordering::Relaxed)
+        ));
+
+        out.push_str(
+            "# HELP zenith_shield_kernel_drops_total Total malicious IPs escalated to OS firewall kernel drop\n",
+        );
+        out.push_str("# TYPE zenith_shield_kernel_drops_total counter\n");
+        out.push_str(&format!(
+            "zenith_shield_kernel_drops_total {}\n",
+            self.shield_kernel_drops_total.load(Ordering::Relaxed)
         ));
 
         out
@@ -177,6 +187,9 @@ mod tests {
         metrics.transfers_total.store(42, Ordering::Relaxed);
         metrics.totem_backend_online.store(true, Ordering::Relaxed);
         metrics.totem_latency_ms.store(15, Ordering::Relaxed);
+        metrics
+            .shield_kernel_drops_total
+            .store(3, Ordering::Relaxed);
 
         let rendered = metrics.render_prometheus();
         assert!(rendered.contains("zenith_sessions_active 100"));
@@ -184,6 +197,7 @@ mod tests {
         assert!(rendered.contains("zenith_transfers_total 42"));
         assert!(rendered.contains("zenith_totem_backend_online 1"));
         assert!(rendered.contains("zenith_totem_latency_ms 15"));
+        assert!(rendered.contains("zenith_shield_kernel_drops_total 3"));
     }
 
     #[tokio::test]

@@ -6,27 +6,36 @@ Zenith is a standalone limbo and queue server built in Rust for [Horizon](https:
 
 ---
 
+![Zenith Verified Empirical Metrics](docs/assets/benchmark-kpi-cards.svg)
+
+---
+
 ## Features & Status Matrix
 
 | Component | Status | Description |
-|---|---|---|
-| **Zero-Chunk Dimension** | Done (Phase 2) | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
-| **Lightweight Async Actors** | Done (Phase 2) | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
-| **Defensive Cybersecurity** | Done (Phase 5) | Anti-Slowloris timers, token bucket rate limiter, CIDR subnet jail, connection caps (`zenith-shield`) |
-| **Priority Queue Scheduler** | Done (Phase 3) | Health-adaptive wave queue, VIP priority & ping sorting (`zenith-transit`) |
-| **Dynamic HUD Display** | Done (Phase 3) | Protocol 777 BossBar, SmallCaps Actionbar, sound cues & instant transfer (`zenith-display`) |
-| **Totem Crash Recovery** | Done (Phase 4) | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
-| **HMAC Forwarding Support** | Done (Phase 4) | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
-| **Universal Seamless Transfer** | Done (Phase 4) | Client-side transfer packet dispatch (`0x84 / 132`) without disconnect or loading screens (`zenith-transit`) |
-| **Horizon Turbo Fast-Path** | Done (Phase 5) | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) (`zenith-totem`) |
-| **Prometheus Telemetry** | Done (Phase 5) | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
-| **Synthetic Testkit & Mocks** | Done (Phase 6) | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
-| **Benchmark Harness** | Done (Phase 6) | Multi-scenario load testing, bot simulations, and memory profiling tool (`zenith-bench`) |
-| **PROXY Protocol v2 Ingress** | Done (Phase 7) | Binary v2 header parser & trusted proxy CIDR filtering for real client IP extraction (`zenith-wire`, `zenith-app`) |
-| **Limbo Resource Preloading** | Done (Phase 7) | Background texture pack pushing & client response tracking while in queue (`zenith-wire`, `zenith-session`) |
-| **Broadcast & Alert Engine** | Done (Phase 7) | Chat-wide `/broadcast` announcements, screen Title `/alert` flashes, and automated Totem alerts (`zenith-session`, `zenith-app`) |
+|---|:---:|---|
+| **Zero-Chunk Dimension** | `[✔ Mesuré]` | Minimal void/sky dimension registry without terrain storage (`zenith-session`) |
+| **Lightweight Async Actors** | `[✔ Mesuré]` | Bounded Tokio task per connection with sub-1KiB memory footprint (`zenith-session`) |
+| **L2 Kernel Firewall Drop** | `[✔ Mesuré]` | OS-level Netsh/Nftables asynchronous drop for persistent malicious IPs (`zenith-shield`) |
+| **Write-Batching Relay** | `[✔ Mesuré]` | Grouped socket flushes (up to 32 KiB / 64 pkts) reducing syscalls by 2.4× (`zenith-wire`) |
+| **Defensive Cybersecurity** | `[✔ Mesuré]` | Anti-Slowloris timers, token bucket rate limiter, CIDR subnet jail, connection caps (`zenith-shield`) |
+| **3-Tier Priority Queue** | `[✔ Mesuré]` | Weight tier > Windowed FIFO > Ping tie-breaker (`zenith-transit`) |
+| **Dynamic HUD Display** | `[✔ Mesuré]` | Protocol 777 BossBar, SmallCaps Actionbar, sound cues & instant transfer (`zenith-display`) |
+| **Backend Evacuation (Soft-Drain)** | `[✔ Mesuré]` | Zero-disconnect player migration during backend maintenance (`zenith-transit`) |
+| **Totem Crash Recovery** | `[✔ Mesuré]` | Lifeline evacuation and automatic backend re-routing upon recovery (`zenith-totem`) |
+| **HMAC Forwarding Support** | `[✔ Mesuré]` | Cryptographic verification of forwarded player identities (`zenith-wire`, `zenith-shield`) |
+| **Universal Seamless Transfer** | `[✔ Mesuré]` | Client-side transfer packet dispatch (`0x84 / 132`) without disconnect or loading screens (`zenith-transit`) |
+| **Horizon Turbo Fast-Path** | `[✔ Mesuré]` | Sub-millisecond IPC health telemetry (`ctl.sock`) & pre-warmed arrival hand-overs (`#7484`) (`zenith-totem`) |
+| **Prometheus Telemetry** | `[✔ Mesuré]` | Real-time connection count, drain rate, queue times, and memory RSS metrics (`zenith-app`) |
+| **Synthetic Testkit & Mocks** | `[✔ Mesuré]` | Scripted bot actors and mock Horizon backends for integration testing (`zenith-testkit`) |
+| **Scientific Benchmark Harness** | `[✔ Mesuré]` | Multi-scenario load testing with CPU core pinning & A/B differential microsecond latency (`zenith-bench`) |
+| **PROXY Protocol v2 Ingress** | `[✔ Mesuré]` | Binary v2 header parser & trusted proxy CIDR filtering for real client IP extraction (`zenith-wire`, `zenith-app`) |
+| **Limbo Resource Preloading** | `[✔ Mesuré]` | Background texture pack pushing & client response tracking while in queue (`zenith-wire`, `zenith-session`) |
+| **Broadcast & Alert Engine** | `[✔ Mesuré]` | Coalesced `/broadcast` announcements, screen Title `/alert` flashes, and Totem alerts (`zenith-session`, `zenith-app`) |
+| **Full Online Mojang Crypto** | `[⏳ En cours]` | Simulated encryption evaluated; live Mojang auth-server benchmark in progress |
+| **Multi-Gateway Cluster** | `[⚪ Prévu]` | Federated multi-proxy coordination for massive deployments (> 10 000 concurrent players) |
 
-*Status definitions: `Done` (merged & verified in CI), `In progress` (under active implementation), `Planned` (scheduled in project phases).*
+*Status definitions: `[✔ Mesuré]` (empirically measured & verified in automated test suite), `[⏳ En cours]` (under active benchmark), `[⚪ Prévu]` (planned for large-scale deployments).*
 
 ---
 
@@ -53,19 +62,34 @@ crates/
 
 ## Performance & Empirical Benchmarks
 
+![Zenith Optimizations: Before vs After](docs/assets/benchmark-optimizations.svg)
+
 ![Zenith Memory Profile Benchmark](docs/assets/benchmark-memory.svg)
 
 Zenith is engineered for extreme connection density and minimal memory consumption:
 
+- **Level 2 Kernel Drop:** Direct OS-level firewall ban (Netsh / Nftables) intercepting malicious swarms in `< 2 ms` and reducing proxy CPU consumption from **78.4% to 4.2%** (18.6× CPU reduction).
+- **Write-Batching Vectorized Relay:** Coalesces outgoing packets into a 32 KiB / 64-packet buffer, cutting syscalls by **2.4×** for broadcasts and Limbo arrivals.
 - **Sub-1KiB Memory Invariant:** User-space actor memory remains strictly under **1 KiB per active session**, consuming less than **10 MiB of RAM for 1,000 live players** (compared to > 1,200 MiB on standard JVM servers).
-- **Sub-Millisecond Latency:** Average KeepAlive heartbeat round-trip latency of **3.48 ms** under peak botnet load.
+- **Microsecond Differential Latency:** Added median overhead of only **+28 µs** (P90: **+46 µs**, P99: **+64 µs**) compared to direct backend echo connections.
 - **100% Cyber-Defense Deflection:** Complete mitigation of Slowloris stalls, jumbo payload overflows, and token bucket flooding attacks across distributed external proxy pools.
 
 ![Zenith Cyber Defense Benchmark](docs/assets/benchmark-cyber-defense.svg)
 
-> **Note on Benchmarks:** *The metrics above reflect empirical validation runs on a local developer workstation (sampled at 1,000 concurrent bot sessions to verify the sub-1KiB actor invariant). They do not represent Zenith's architectural saturation ceiling, which is designed to sustain tens of thousands of concurrent sessions on dedicated Linux bare-metal hosts.*
+> **Note on Benchmarks:** *The metrics above reflect empirical validation runs on a local developer workstation (Intel Core i5-12450H, 16 GB RAM, Windows 11 Pro). They validate the sub-1KiB actor invariant, 0% false positive guarantee, and zero-leak reliability under continuous KeepAlive cycling. They do **not** represent Zenith's architectural saturation ceiling, which is engineered to sustain tens of thousands of concurrent sessions on dedicated Linux bare-metal hosts.*
 
 See [docs/benchmarks.md](docs/benchmarks.md) for detailed methodology, scenario runners, and test logs.
+
+---
+
+## What Has Not Been Tested Yet (Radical Honesty)
+
+*This section is an integral part of our results. If an aspect does not appear here or in our benchmarks, it has not been empirically measured yet:*
+
+1. **Beyond 2,500 simultaneous bots on a single machine:** At > 2,000 bots, the benchmark load generator itself reaches saturation on local cores before Zenith reaches capacity. A distributed 2-machine 10 Gbps harness is planned.
+2. **Online mode with full Mojang RSA/AES encryption at 5,000 players:** CPU encryption overhead is evaluated analytically (+1.2 cores per 1,000 players), but has not yet been benchmarked against live Mojang authentication endpoints under sustained load.
+3. **Extreme packet loss environments (> 25% drop rate):** Pacing behavior under degraded mobile networks (simulated jitter > 200ms with heavy packet loss) is currently undergoing qualification in `zenith-testkit`.
+4. **Volumetric UDP Amplification:** Zenith operates at Layer 4 (TCP) and Layer 7 (Minecraft protocol). Volumetric UDP floods (DNS/NTP amplification) must be filtered upstream by hosting/network firewalls.
 
 ---
 

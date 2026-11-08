@@ -42,6 +42,8 @@ pub struct QueueConfig {
     pub wave_interval_ms: u64,
     #[serde(default = "default_sorting")]
     pub sorting: String,
+    #[serde(default = "default_arrival_window")]
+    pub arrival_window_ms: u64,
     #[serde(default = "default_groups_file")]
     pub groups_file: Option<PathBuf>,
 }
@@ -53,7 +55,10 @@ fn default_wave_interval() -> u64 {
     4000
 }
 fn default_sorting() -> String {
-    "ping".to_string()
+    "fifo".to_string()
+}
+fn default_arrival_window() -> u64 {
+    0
 }
 fn default_groups_file() -> Option<PathBuf> {
     Some(PathBuf::from("groups.toml"))
@@ -65,6 +70,7 @@ impl Default for QueueConfig {
             wave_size: default_wave_size(),
             wave_interval_ms: default_wave_interval(),
             sorting: default_sorting(),
+            arrival_window_ms: default_arrival_window(),
             groups_file: default_groups_file(),
         }
     }
@@ -136,8 +142,6 @@ pub struct FingerprintSettings {
     pub require_client_info: bool,
     #[serde(default = "default_min_view_distance")]
     pub min_view_distance: i8,
-    #[serde(default = "default_max_view_distance")]
-    pub max_view_distance: i8,
     #[serde(default)]
     pub require_brand: bool,
     #[serde(default = "default_blocked_brands")]
@@ -145,10 +149,7 @@ pub struct FingerprintSettings {
 }
 
 fn default_min_view_distance() -> i8 {
-    2
-}
-fn default_max_view_distance() -> i8 {
-    32
+    1
 }
 fn default_blocked_brands() -> Vec<String> {
     vec![
@@ -165,7 +166,6 @@ impl Default for FingerprintSettings {
             enabled: true,
             require_client_info: true,
             min_view_distance: default_min_view_distance(),
-            max_view_distance: default_max_view_distance(),
             require_brand: false,
             blocked_brands: default_blocked_brands(),
         }
@@ -196,6 +196,33 @@ pub struct ShieldSettings {
     pub challenge_timeout_ms: u64,
     #[serde(default)]
     pub fingerprint: FingerprintSettings,
+    #[serde(default)]
+    pub firewall: FirewallSettings,
+}
+
+/// Kernel-level packet filter and firewall synchronization settings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FirewallSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_firewall_backend")]
+    pub backend: String,
+    #[serde(default = "default_jail_duration")]
+    pub jail_duration_secs: u64,
+}
+
+fn default_firewall_backend() -> String {
+    "auto".to_string()
+}
+
+impl Default for FirewallSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            backend: default_firewall_backend(),
+            jail_duration_secs: default_jail_duration(),
+        }
+    }
 }
 
 fn default_max_conn_per_ip() -> usize {
@@ -237,6 +264,7 @@ impl Default for ShieldSettings {
             enable_challenge: true,
             challenge_timeout_ms: default_challenge_timeout(),
             fingerprint: FingerprintSettings::default(),
+            firewall: FirewallSettings::default(),
         }
     }
 }
@@ -388,6 +416,15 @@ impl ZenithConfig {
         {
             config.queue.wave_interval_ms = wi;
         }
+        if let Ok(st) = env::var("ZENITH_QUEUE_SORTING") {
+            config.queue.sorting = st;
+        }
+        if let Some(aw) = env::var("ZENITH_ARRIVAL_WINDOW_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+        {
+            config.queue.arrival_window_ms = aw;
+        }
         if let Ok(sec) = env::var("ZENITH_HMAC_SECRET") {
             config.forwarding.hmac_secret = Some(sec);
         }
@@ -396,6 +433,12 @@ impl ZenithConfig {
         }
         if let Ok(proxy_val) = env::var("ZENITH_PROXY_ENABLED") {
             config.proxy.enabled = proxy_val == "1" || proxy_val.eq_ignore_ascii_case("true");
+        }
+        if let Ok(fw_en) = env::var("ZENITH_FIREWALL_ENABLED") {
+            config.shield.firewall.enabled = fw_en == "1" || fw_en.eq_ignore_ascii_case("true");
+        }
+        if let Ok(fw_be) = env::var("ZENITH_FIREWALL_BACKEND") {
+            config.shield.firewall.backend = fw_be;
         }
 
         config
@@ -411,8 +454,12 @@ mod tests {
         let config = ZenithConfig::default();
         assert_eq!(config.server.bind, "0.0.0.0:25565");
         assert_eq!(config.server.target, "127.0.0.1:25566");
+        assert_eq!(config.queue.sorting, "fifo");
+        assert_eq!(config.queue.arrival_window_ms, 0);
         assert_eq!(config.shield.max_connections_per_ip, 3);
         assert_eq!(config.shield.jail_duration_secs, 900);
+        assert!(!config.shield.firewall.enabled);
+        assert_eq!(config.shield.firewall.backend, "auto");
         assert_eq!(config.metrics.bind, "0.0.0.0:25580");
         assert!(!config.proxy.enabled);
         assert!(config.broadcast.notify_on_backend_down);

@@ -1,103 +1,129 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 460" width="100%" height="100%" role="img" aria-labelledby="at-title at-desc">
+  <title id="at-title">Zenith Architecture Topology</title>
+  <desc id="at-desc">High-performance architecture topology: ingress, cyber-defense shield, zero-chunk virtual session actor loop, priority transit scheduler, and seamless backend transfer.</desc>
+
   <defs>
-    <linearGradient id="bgTop" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#080d1a"/>
-      <stop offset="100%" stop-color="#0e172a"/>
-    </linearGradient>
+    <style>
+      .sans { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      .mono { font-family: 'JetBrains Mono', Consolas, monospace; }
+    </style>
 
-    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
-    </linearGradient>
-
-    <pattern id="gridTop" width="30" height="30" patternUnits="userSpaceOnUse">
-      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.5" stroke-opacity="0.4"/>
+    <pattern id="dotGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1e293b" fill-opacity="0.8"/>
     </pattern>
 
+    <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 1 L 6 4 L 0 7 Z" fill="#0ea5e9"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 1 L 6 4 L 0 7 Z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M 0 1 L 6 4 L 0 7 Z" fill="#8b5cf6"/>
+    </marker>
     <clipPath id="grid-bounds-ref"><path d="M 1711.457 26.3 C 777.001 0.947 124.50 9.70 10174464.0 0.18 Z"/></clipPath>
   </defs>
 
-  <!-- Background Canvas -->
-  <rect width="1000" height="440" rx="14" fill="url(#bgTop)"/>
-  <rect width="1000" height="440" rx="14" fill="url(#gridTop)"/>
-  <rect width="1000" height="440" rx="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+  <!-- Canvas Background -->
+  <rect width="1000" height="460" rx="12" fill="#0b0f19"/>
+  <rect width="1000" height="460" rx="12" fill="url(#dotGrid)"/>
+  <rect width="1000" height="460" rx="12" fill="none" stroke="#1e293b" stroke-width="1.5"/>
 
   <!-- Header -->
-  <text x="50" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="800" fill="#f8fafc" letter-spacing="0.5">ZENITH ARCHITECTURE TOPOLOGY</text>
-  <text x="50" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b">ZERO-CHUNK VIRTUAL DIMENSION, TRANSIT &amp; DEFENSIVE SHIELD</text>
+  <g transform="translate(48, 44)">
+    <rect width="8" height="24" rx="2" fill="#0ea5e9"/>
+    <text x="18" y="18" class="sans" font-size="18" font-weight="700" fill="#f8fafc" letter-spacing="0.5">ZENITH ARCHITECTURE TOPOLOGY</text>
+    <text x="18" y="36" class="sans" font-size="11" font-weight="500" fill="#64748b">ZERO-CHUNK VIRTUAL DIMENSION, TRANSIT SCHEDULER &amp; DEFENSIVE SHIELD</text>
+  </g>
 
-  <!-- Horizontal Pipeline Connectors -->
+  <!-- Status Badge Top-Right -->
+  <g transform="translate(820, 44)">
+    <rect width="132" height="30" rx="6" fill="#111827" stroke="#1f2937" stroke-width="1"/>
+    <circle cx="16" cy="15" r="4" fill="#10b981"/>
+    <text x="28" y="19" class="mono" font-size="11" font-weight="600" fill="#10b981">PROTOCOL 777</text>
+  </g>
+
+  <!-- Connectors -->
   <!-- 1 -> 2 -->
-  <path d="M 230 165 L 290 165" fill="none" stroke="#38bdf8" stroke-width="2"/>
-  <polygon points="290,161 300,165 290,169" fill="#38bdf8"/>
-  <text x="238" y="155" font-family="'JetBrains Mono', Consolas, monospace" font-size="9.5" fill="#38bdf8">:25565</text>
+  <path d="M 220 175 L 282 175" fill="none" stroke="#0ea5e9" stroke-width="1.75" marker-end="url(#arrowCyan)"/>
+  <rect x="232" y="163" width="38" height="16" rx="4" fill="#0b0f19" stroke="#1e293b"/>
+  <text x="251" y="174" class="mono" font-size="9" fill="#38bdf8" text-anchor="middle">:25565</text>
 
   <!-- 2 -> 3 -->
-  <path d="M 480 165 L 540 165" fill="none" stroke="#38bdf8" stroke-width="2"/>
-  <polygon points="540,161 550,165 540,169" fill="#38bdf8"/>
+  <path d="M 460 175 L 522 175" fill="none" stroke="#0ea5e9" stroke-width="1.75" marker-end="url(#arrowCyan)"/>
+  <rect x="472" y="163" width="38" height="16" rx="4" fill="#0b0f19" stroke="#1e293b"/>
+  <text x="491" y="174" class="mono" font-size="9" fill="#38bdf8" text-anchor="middle">Shielded</text>
 
   <!-- 3 -> 4 -->
-  <path d="M 730 165 L 790 165" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="5 3"/>
-  <polygon points="790,161 800,165 790,169" fill="#10b981"/>
-  <text x="736" y="155" font-family="'JetBrains Mono', Consolas, monospace" font-size="9.5" fill="#10b981">Transfer</text>
+  <path d="M 700 175 L 762 175" fill="none" stroke="#10b981" stroke-width="1.75" stroke-dasharray="5 3" marker-end="url(#arrowGreen)"/>
+  <rect x="712" y="163" width="38" height="16" rx="4" fill="#0b0f19" stroke="#1e293b"/>
+  <text x="731" y="174" class="mono" font-size="9" fill="#10b981" text-anchor="middle">0x84</text>
 
-  <!-- Vertical Connectors to Lower Row -->
-  <!-- 3 -> Queue (curved down-left) -->
-  <path d="M 610 215 C 610 265, 485 265, 485 300" fill="none" stroke="#a855f7" stroke-width="2"/>
-  <polygon points="481,300 485,310 489,300" fill="#a855f7"/>
+  <!-- Vertical Connectors to Bottom Row -->
+  <path d="M 580 235 C 580 280, 460 280, 460 312" fill="none" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+  <path d="M 640 235 C 640 280, 760 280, 760 312" fill="none" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
 
-  <!-- 3 -> HUD (curved down-right) -->
-  <path d="M 670 215 C 670 265, 795 265, 795 300" fill="none" stroke="#a855f7" stroke-width="2"/>
-  <polygon points="791,300 795,310 799,300" fill="#a855f7"/>
-
-  <!-- ==================== TOP ROW: PIPELINE ==================== -->
-  <!-- NODE 1: INGEST -->
-  <g transform="translate(50, 120)">
-    <rect width="180" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.5"/>
-    <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" fill="#38bdf8">INGRESS</text>
-    <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#ffffff">Players &amp; Proxy</text>
-    <text x="16" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Minecraft 26.3 • Meridian</text>
+  <!-- ==================== TOP ROW NODES ==================== -->
+  <!-- NODE 1: Ingress -->
+  <g transform="translate(48, 125)">
+    <rect width="172" height="100" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="172" height="3" rx="1.5" fill="#0ea5e9"/>
+    <text x="16" y="24" class="mono" font-size="9.5" font-weight="700" fill="#0ea5e9" letter-spacing="0.8">01 • INGRESS</text>
+    <text x="16" y="48" class="sans" font-size="14" font-weight="700" fill="#f8fafc">Players &amp; Gateway</text>
+    <text x="16" y="68" class="sans" font-size="11" fill="#94a3b8">Minecraft Java 26.3</text>
+    <text x="16" y="84" class="sans" font-size="10.5" fill="#64748b">Proxies • HAProxy • Direct</text>
   </g>
 
-  <!-- NODE 2: SHIELD & WIRE -->
-  <g transform="translate(300, 120)">
-    <rect width="180" height="90" rx="10" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5"/>
-    <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" fill="#38bdf8">DEFENSIVE SHIELD</text>
-    <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#ffffff">zenith-shield / wire</text>
-    <text x="16" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Anti-Slowloris • Bounds</text>
+  <!-- NODE 2: Defensive Shield -->
+  <g transform="translate(288, 125)">
+    <rect width="172" height="100" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="172" height="3" rx="1.5" fill="#0ea5e9"/>
+    <text x="16" y="24" class="mono" font-size="9.5" font-weight="700" fill="#0ea5e9" letter-spacing="0.8">02 • DEFENSE</text>
+    <text x="16" y="48" class="sans" font-size="14" font-weight="700" fill="#f8fafc">zenith-shield / wire</text>
+    <text x="16" y="68" class="sans" font-size="11" fill="#94a3b8">Anti-Slowloris • Token-Bucket</text>
+    <text x="16" y="84" class="sans" font-size="10.5" fill="#64748b">Kernel Dropper • Jail Pool</text>
   </g>
 
-  <!-- NODE 3: VIRTUAL SESSION -->
-  <g transform="translate(550, 115)">
-    <rect width="180" height="100" rx="10" fill="url(#cardGrad)" stroke="#10b981" stroke-width="2"/>
-    <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" fill="#34d399">CORE DIMENSION</text>
-    <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#ffffff">zenith-session</text>
-    <text x="16" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Zero-Chunk Tokio Actors</text>
-    <text x="16" y="86" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="600" fill="#10b981">&lt; 1 KiB RAM / Session</text>
+  <!-- NODE 3: Virtual Session Core (Hero Node) -->
+  <g transform="translate(528, 115)">
+    <rect width="172" height="120" rx="8" fill="#111827" stroke="#10b981" stroke-width="1.75"/>
+    <rect x="0" y="0" width="172" height="3" rx="1.5" fill="#10b981"/>
+    <text x="16" y="24" class="mono" font-size="9.5" font-weight="700" fill="#10b981" letter-spacing="0.8">03 • CORE DIMENSION</text>
+    <text x="16" y="48" class="sans" font-size="14" font-weight="700" fill="#f8fafc">zenith-session</text>
+    <text x="16" y="68" class="sans" font-size="11" fill="#94a3b8">Zero-Chunk Tokio Actors</text>
+    <text x="16" y="84" class="sans" font-size="10.5" fill="#64748b">20 Hz Virtual Void Engine</text>
+    <rect x="16" y="93" width="140" height="18" rx="4" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-opacity="0.25"/>
+    <text x="86" y="105" class="mono" font-size="9" font-weight="600" fill="#34d399" text-anchor="middle">&lt; 1 KiB RAM / Session</text>
   </g>
 
-  <!-- NODE 4: EGRESS / HORIZON -->
-  <g transform="translate(800, 120)">
-    <rect width="150" height="90" rx="10" fill="url(#cardGrad)" stroke="#25355a" stroke-width="1.5"/>
-    <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" fill="#10b981">EGRESS</text>
-    <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#ffffff">Game Servers</text>
-    <text x="16" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Horizon Dedicated</text>
+  <!-- NODE 4: Backend Egress -->
+  <g transform="translate(768, 125)">
+    <rect width="184" height="100" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="184" height="3" rx="1.5" fill="#10b981"/>
+    <text x="16" y="24" class="mono" font-size="9.5" font-weight="700" fill="#10b981" letter-spacing="0.8">04 • EGRESS</text>
+    <text x="16" y="48" class="sans" font-size="14" font-weight="700" fill="#f8fafc">Game Backends</text>
+    <text x="16" y="68" class="sans" font-size="11" fill="#94a3b8">Horizon Dedicated / Paper</text>
+    <text x="16" y="84" class="sans" font-size="10.5" fill="#64748b">HMAC-Verified Cookie Handshake</text>
   </g>
 
-  <!-- ==================== BOTTOM ROW: TRANSIT & HUD ==================== -->
-  <!-- NODE 5: TRANSIT QUEUE -->
-  <g transform="translate(395, 310)">
-    <rect width="180" height="90" rx="10" fill="url(#cardGrad)" stroke="#a855f7" stroke-width="1.5"/>
-    <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" fill="#c084fc">SCHEDULER</text>
-    <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#ffffff">zenith-transit</text>
-    <text x="16" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Priority FIFO • VIP Weights</text>
+  <!-- ==================== BOTTOM ROW NODES ==================== -->
+  <!-- NODE 5: Transit Scheduler -->
+  <g transform="translate(360, 320)">
+    <rect width="200" height="96" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="200" height="3" rx="1.5" fill="#8b5cf6"/>
+    <text x="16" y="24" class="mono" font-size="9.5" font-weight="700" fill="#a78bfa" letter-spacing="0.8">SCHEDULER • TRANSIT</text>
+    <text x="16" y="48" class="sans" font-size="14" font-weight="700" fill="#f8fafc">zenith-transit</text>
+    <text x="16" y="68" class="sans" font-size="11" fill="#94a3b8">Windowed FIFO • VIP Weights</text>
+    <text x="16" y="84" class="sans" font-size="10.5" fill="#64748b">Adaptive Wave Drain &amp; Soft-Drain</text>
   </g>
 
-  <!-- NODE 6: DISPLAY HUD -->
-  <g transform="translate(705, 310)">
-    <rect width="180" height="90" rx="10" fill="url(#cardGrad)" stroke="#a855f7" stroke-width="1.5"/>
-    <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="700" fill="#c084fc">HUD &amp; AUDIO</text>
-    <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#ffffff">zenith-display</text>
-    <text x="16" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#94a3b8">Live BossBar % • Actionbar</text>
+  <!-- NODE 6: HUD & Telemetry -->
+  <g transform="translate(660, 320)">
+    <rect width="200" height="96" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
+    <rect x="0" y="0" width="200" height="3" rx="1.5" fill="#8b5cf6"/>
+    <text x="16" y="24" class="mono" font-size="9.5" font-weight="700" fill="#a78bfa" letter-spacing="0.8">HUD &amp; TELEMETRY</text>
+    <text x="16" y="48" class="sans" font-size="14" font-weight="700" fill="#f8fafc">zenith-display</text>
+    <text x="16" y="68" class="sans" font-size="11" fill="#94a3b8">BossBar % • Actionbar Alerts</text>
+    <text x="16" y="84" class="sans" font-size="10.5" fill="#64748b">ETA Projection &amp; Sound Jingles</text>
   </g>
 </svg>

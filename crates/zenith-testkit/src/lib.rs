@@ -6,7 +6,10 @@ pub mod mutate;
 pub mod proxy;
 
 pub use backend::{MockBackendStats, MockHorizonBackend};
-pub use client::{AdversaryStrategy, ClientError, ClientOutcome, ClientType, SyntheticClient};
+pub use client::{
+    AdversaryStrategy, ClientError, ClientOutcome, ClientType, LiveTelemetry, PlayerProfile,
+    SyntheticClient,
+};
 pub use mutate::{MutationKind, MutatorPrng, mutate_packet};
 pub use proxy::{HttpProxy, ProxyError, load_proxy_pool};
 

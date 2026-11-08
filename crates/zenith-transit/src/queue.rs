@@ -17,6 +17,7 @@ pub struct TransitQueue {
     entries: HashMap<SessionId, QueueEntry>,
     paused: bool,
     scheduler: WaveScheduler,
+    evacuation: crate::evacuate::EvacuationManager,
 }
 
 impl TransitQueue {
@@ -28,7 +29,24 @@ impl TransitQueue {
             entries: HashMap::new(),
             paused: false,
             scheduler: WaveScheduler::new(),
+            evacuation: crate::evacuate::EvacuationManager::new(),
         }
+    }
+
+    /// Access the evacuation manager.
+    #[must_use]
+    pub fn evacuation(&self) -> &crate::evacuate::EvacuationManager {
+        &self.evacuation
+    }
+
+    /// Mutably access the evacuation manager.
+    pub fn evacuation_mut(&mut self) -> &mut crate::evacuate::EvacuationManager {
+        &mut self.evacuation
+    }
+
+    /// Marks a backend for soft-drain evacuation.
+    pub fn evacuate_backend(&mut self, backend_id: impl Into<String>, fallback: Option<String>) {
+        self.evacuation.start_evacuation(backend_id, fallback);
     }
 
     /// Access the underlying configuration.
@@ -97,7 +115,29 @@ impl TransitQueue {
 
             // Secondary order: based on sorting policy within the same tier
             match policy {
-                SortingPolicy::Fifo => a.enqueued_at.cmp(&b.enqueued_at),
+                SortingPolicy::Fifo => {
+                    let window_ms = self.config.arrival_window_ms;
+                    if window_ms > 0 {
+                        let diff_ms = if a.enqueued_at > b.enqueued_at {
+                            a.enqueued_at.duration_since(b.enqueued_at).as_millis() as u64
+                        } else {
+                            b.enqueued_at.duration_since(a.enqueued_at).as_millis() as u64
+                        };
+                        if diff_ms <= window_ms {
+                            a.ping_ms
+                                .cmp(&b.ping_ms)
+                                .then_with(|| a.enqueued_at.cmp(&b.enqueued_at))
+                        } else {
+                            a.enqueued_at
+                                .cmp(&b.enqueued_at)
+                                .then_with(|| a.ping_ms.cmp(&b.ping_ms))
+                        }
+                    } else {
+                        a.enqueued_at
+                            .cmp(&b.enqueued_at)
+                            .then_with(|| a.ping_ms.cmp(&b.ping_ms))
+                    }
+                }
                 SortingPolicy::PingAscending => a
                     .ping_ms
                     .cmp(&b.ping_ms)
@@ -294,5 +334,125 @@ mod tests {
         // Immediately afterwards, wave is not due
         let wave2 = queue.drain_wave(now, &health);
         assert_eq!(wave2.len(), 0);
+    }
+
+    #[test]
+    fn test_weight_fifo_ping_hierarchy() {
+        let config = TransitConfig {
+            sorting_policy: SortingPolicy::Fifo,
+            arrival_window_ms: 0,
+            ..Default::default()
+        };
+        let mut queue = TransitQueue::new(config);
+
+        let t_base = Instant::now();
+
+        // 1. Standard player arrived earlier with higher ping
+        let mut entry_std_early = QueueEntry::new(
+            SessionId(1),
+            1,
+            "std_early",
+            QueuePriority::Standard,
+            50,
+            "hub",
+        );
+        entry_std_early.enqueued_at = t_base;
+
+        // 2. Standard player arrived later with lower ping
+        let mut entry_std_late = QueueEntry::new(
+            SessionId(2),
+            2,
+            "std_late",
+            QueuePriority::Standard,
+            10,
+            "hub",
+        );
+        entry_std_late.enqueued_at = t_base + std::time::Duration::from_millis(50);
+
+        // 3. VIP player arrived even later with high ping
+        let mut entry_vip = QueueEntry::new(
+            SessionId(3),
+            3,
+            "vip_late",
+            QueuePriority::Custom(500),
+            120,
+            "hub",
+        );
+        entry_vip.enqueued_at = t_base + std::time::Duration::from_millis(100);
+
+        // 4. Two standard players arrived at the exact same base timestamp with different pings
+        let mut entry_tie_fast = QueueEntry::new(
+            SessionId(4),
+            4,
+            "tie_fast",
+            QueuePriority::Standard,
+            15,
+            "hub",
+        );
+        entry_tie_fast.enqueued_at = t_base;
+        let mut entry_tie_slow = QueueEntry::new(
+            SessionId(5),
+            5,
+            "tie_slow",
+            QueuePriority::Standard,
+            85,
+            "hub",
+        );
+        entry_tie_slow.enqueued_at = t_base;
+
+        queue.enqueue(entry_std_early);
+        queue.enqueue(entry_std_late);
+        queue.enqueue(entry_vip);
+        queue.enqueue(entry_tie_fast);
+        queue.enqueue(entry_tie_slow);
+
+        let sorted = queue.sorted_entries();
+
+        // Level 1: Weight takes precedence -> VIP is #1 despite arriving later and having 120ms ping
+        assert_eq!(sorted[0].session_id, SessionId(3));
+
+        // Level 2 & 3: Among standard players:
+        // entry_tie_fast (t_base, 15ms) vs entry_std_early (t_base, 50ms) vs entry_tie_slow (t_base, 85ms)
+        // All three have timestamp t_base -> sorted by ping: 15ms, then 50ms, then 85ms!
+        assert_eq!(sorted[1].session_id, SessionId(4)); // 15ms
+        assert_eq!(sorted[2].session_id, SessionId(1)); // 50ms
+        assert_eq!(sorted[3].session_id, SessionId(5)); // 85ms
+
+        // std_late arrived 50ms later -> sorted last by FIFO despite having lower ping (10ms)
+        assert_eq!(sorted[4].session_id, SessionId(2));
+    }
+
+    #[test]
+    fn test_windowed_fifo_ping_sorting() {
+        let config = TransitConfig {
+            sorting_policy: SortingPolicy::Fifo,
+            arrival_window_ms: 200, // 200ms window
+            ..Default::default()
+        };
+        let mut queue = TransitQueue::new(config);
+        let t_base = Instant::now();
+
+        // Player A arrives at t_base with 60ms ping
+        let mut p_a = QueueEntry::new(SessionId(1), 1, "A", QueuePriority::Standard, 60, "hub");
+        p_a.enqueued_at = t_base;
+
+        // Player B arrives at t_base + 50ms (within 200ms window) with 10ms ping
+        let mut p_b = QueueEntry::new(SessionId(2), 2, "B", QueuePriority::Standard, 10, "hub");
+        p_b.enqueued_at = t_base + std::time::Duration::from_millis(50);
+
+        // Player C arrives at t_base + 500ms (outside 200ms window) with 5ms ping
+        let mut p_c = QueueEntry::new(SessionId(3), 3, "C", QueuePriority::Standard, 5, "hub");
+        p_c.enqueued_at = t_base + std::time::Duration::from_millis(500);
+
+        queue.enqueue(p_a);
+        queue.enqueue(p_b);
+        queue.enqueue(p_c);
+
+        let sorted = queue.sorted_entries();
+        // B (10ms) beats A (60ms) because they are within the 200ms arrival window!
+        assert_eq!(sorted[0].session_id, SessionId(2));
+        assert_eq!(sorted[1].session_id, SessionId(1));
+        // C is outside the window, so C remains after A and B
+        assert_eq!(sorted[2].session_id, SessionId(3));
     }
 }

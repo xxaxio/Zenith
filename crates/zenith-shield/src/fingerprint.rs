@@ -14,8 +14,8 @@ pub enum FingerprintError {
     MissingClientInfo,
     #[error("Invalid client locale: {0:?}")]
     InvalidLocale(String),
-    #[error("Illegal client view distance {0} (allowed: {1}..={2})")]
-    InvalidViewDistance(i8, i8, i8),
+    #[error("Illegal client view distance {0} (must be strictly positive > 0)")]
+    InvalidViewDistance(i8),
     #[error("Invalid chat visibility enum: {0}")]
     InvalidChatVisibility(i32),
     #[error("Invalid main hand enum: {0}")]
@@ -35,10 +35,8 @@ pub struct FingerprintConfig {
     pub enabled: bool,
     /// Whether `ClientInformation` is mandatory before completing Configuration (true for all real clients).
     pub require_client_info: bool,
-    /// Minimum acceptable view distance in chunks (vanilla minimum is 2).
+    /// Minimum acceptable view distance in chunks (must be > 0, defaults to 1; no upper limit).
     pub min_view_distance: i8,
-    /// Maximum acceptable view distance in chunks (vanilla maximum is 32).
-    pub max_view_distance: i8,
     /// Whether `minecraft:brand` is mandatory.
     pub require_brand: bool,
     /// Blacklisted client software brands (matched case-insensitively). Note: player usernames are never checked.
@@ -50,8 +48,7 @@ impl Default for FingerprintConfig {
         Self {
             enabled: true,
             require_client_info: true,
-            min_view_distance: 2,
-            max_view_distance: 32,
+            min_view_distance: 1,
             require_brand: false,
             blocked_brands: vec![
                 "mcbot".to_string(),
@@ -101,15 +98,14 @@ impl FingerprintValidator {
                 return Err(FingerprintError::InvalidLocale(loc.clone()));
             }
 
-            // View distance bound check
-            if info.view_distance < config.min_view_distance
-                || info.view_distance > config.max_view_distance
-            {
-                return Err(FingerprintError::InvalidViewDistance(
-                    info.view_distance,
-                    config.min_view_distance,
-                    config.max_view_distance,
-                ));
+            // View distance check: must be strictly positive (no upper limit to prevent false positives with custom clients/mods)
+            let min_allowed = if config.min_view_distance > 0 {
+                config.min_view_distance
+            } else {
+                1
+            };
+            if info.view_distance < min_allowed {
+                return Err(FingerprintError::InvalidViewDistance(info.view_distance));
             }
 
             // Chat visibility enum: 0 (Full), 1 (System), 2 (Hidden)
@@ -195,19 +191,26 @@ mod tests {
             brand: Some("vanilla".into()),
         };
 
-        // 0 chunks is physically impossible in vanilla client
+        // 0 chunks is physically impossible in genuine clients
         fp.client_info.as_mut().unwrap().view_distance = 0;
         assert_eq!(
             FingerprintValidator::evaluate(&config, &fp),
-            Err(FingerprintError::InvalidViewDistance(0, 2, 32))
+            Err(FingerprintError::InvalidViewDistance(0))
         );
 
-        // 100 chunks exceeds vanilla maximum (32)
-        fp.client_info.as_mut().unwrap().view_distance = 100;
+        // Negative chunks is illegal
+        fp.client_info.as_mut().unwrap().view_distance = -5;
         assert_eq!(
             FingerprintValidator::evaluate(&config, &fp),
-            Err(FingerprintError::InvalidViewDistance(100, 2, 32))
+            Err(FingerprintError::InvalidViewDistance(-5))
         );
+
+        // Uncapped / high view distances (e.g. 64, 127) pass with zero false positives
+        fp.client_info.as_mut().unwrap().view_distance = 64;
+        assert!(FingerprintValidator::evaluate(&config, &fp).is_ok());
+
+        fp.client_info.as_mut().unwrap().view_distance = 127;
+        assert!(FingerprintValidator::evaluate(&config, &fp).is_ok());
     }
 
     #[test]

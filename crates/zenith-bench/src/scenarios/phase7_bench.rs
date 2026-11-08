@@ -79,6 +79,7 @@ pub async fn run_phase7_bench(
                 Ok(ClientOutcome::HeldInLimbo {
                     keepalives_answered,
                     alerts_received,
+                    ..
                 }) => {
                     let elapsed = run_start.elapsed();
                     lat_cloned.record(elapsed).await;
