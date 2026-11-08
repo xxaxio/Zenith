@@ -43,18 +43,22 @@ jobs:
         run: |
           sha12="${GITHUB_SHA:0:12}"
           name="zenith-${sha12}-${{ matrix.name }}"
-          mkdir -p "dist/$name"
-          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" "target/${{ matrix.target }}/release/${{ matrix.bench_exe }}" README.md LICENSE zenith.example.toml "dist/$name/"
-          cd dist
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            7z a -tzip "$name.zip" "$name" > /dev/null
-          else
-            tar -czf "$name.tar.gz" "$name"
+          mkdir -p "dist-release/$name"
+          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" "target/${{ matrix.target }}/release/${{ matrix.bench_exe }}" README.md LICENSE zenith.example.toml "dist-release/$name/"
+          if [ -d "dist/systemd" ]; then
+            cp dist/install.sh dist/uninstall.sh "dist-release/$name/"
+            cp -r dist/systemd "dist-release/$name/"
           fi
-          rm -r "$name"
+          mkdir -p dist-out
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a -tzip "dist-out/$name.zip" "./dist-release/$name/*" > /dev/null
+          else
+            tar -czf "dist-out/$name.tar.gz" -C dist-release "$name"
+          fi
+          rm -rf dist-release
       - uses: actions/upload-artifact@v4
         with:
           name: zenith-${{ matrix.name }}
-          path: dist/*
+          path: dist-out/*
           retention-days: 14
           if-no-files-found: error

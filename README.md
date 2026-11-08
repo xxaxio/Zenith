@@ -60,6 +60,26 @@ crates/
 
 ---
 
+## Production Deployment (Linux Systemd)
+
+Zenith is engineered to run as a native Linux systemd daemon (`zenith.service`) with enterprise socket limits (`LimitNOFILE=1048576`), hardened kernel sandboxing, and zero-downtime hot reloads (`systemctl reload zenith`).
+
+### 1-Line Universal Installer
+
+```bash
+curl -sSL https://raw.githubusercontent.com/xxaxio/Zenith/main/dist/install.sh | sudo bash
+```
+
+```bash
+sudo systemctl status zenith       # View daemon status
+sudo journalctl -u zenith -f       # Live log streaming
+sudo systemctl reload zenith       # Zero-downtime hot reload
+```
+
+For full systemd documentation, custom sysctl tuning, and proxy topology patterns, see the [Production Deployment Guide](docs/DEPLOYMENT.md).
+
+---
+
 ## Performance & Empirical Benchmarks
 
 ![Zenith Optimizations: Before vs After](docs/assets/benchmark-optimizations.svg)
@@ -102,6 +122,7 @@ See [docs/benchmarks.md](docs/benchmarks.md) for detailed methodology, scenario 
 
 Exhaustive design specifications and operational manuals are available in `docs/`:
 
+- [Production Deployment Guide](docs/DEPLOYMENT.md) — Systemd service setup, 1-line installer & Linux kernel socket tuning.
 - [Architecture Specification](docs/architecture.md) — System boundaries, components, and topology.
 - [Protocol 777 Reference](docs/PROTOCOL.md) — Exact packet mappings and state machine.
 - [Meridian Integration Guide](docs/meridian-integration.md) — Reverse-proxy delesting, HMAC token forwarding & seamless transit.

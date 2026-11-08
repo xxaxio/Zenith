@@ -94,7 +94,9 @@ jail_duration_secs = 900
 
 ### Meridian Fallback Route Example
 ```toml
-# In Meridian proxy configuration
+# In Meridian proxy configuration (meridian.toml)
+accept-transfers = true # Enable to accept incoming 0x84 client transfers from Zenith
+
 [[servers]]
 name = "lobby"
 address = "127.0.0.1:25566"

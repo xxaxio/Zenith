@@ -38,7 +38,9 @@ pub async fn run_limbo_holding(
 
         let handle = tokio::spawn(async move {
             let _permit = permit;
-            let username = format!("LimboBot_{i:05}");
+            let bot_prefix =
+                std::env::var("ZENITH_BOT_PREFIX").unwrap_or_else(|_| "LimboBot".to_string());
+            let username = format!("{bot_prefix}_{i:05}");
             let client = SyntheticClient::new(
                 &username,
                 ClientType::Vanilla {

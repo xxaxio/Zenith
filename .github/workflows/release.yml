@@ -41,20 +41,24 @@ jobs:
         shell: bash
         run: |
           dir="zenith-${GITHUB_REF_NAME}-${{ matrix.name }}"
-          mkdir -p "dist/$dir"
-          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" README.md LICENSE zenith.example.toml "dist/$dir/"
-          cd dist
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            7z a -tzip "$dir.zip" "$dir" > /dev/null
-          else
-            tar -czf "$dir.tar.gz" "$dir"
+          mkdir -p "dist-release/$dir"
+          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" README.md LICENSE zenith.example.toml "dist-release/$dir/"
+          if [ -d "dist/systemd" ]; then
+            cp dist/install.sh dist/uninstall.sh "dist-release/$dir/"
+            cp -r dist/systemd "dist-release/$dir/"
           fi
-          rm -r "$dir"
-          ls -l
+          mkdir -p dist-out
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a -tzip "dist-out/$dir.zip" "./dist-release/$dir/*" > /dev/null
+          else
+            tar -czf "dist-out/$dir.tar.gz" -C dist-release "$dir"
+          fi
+          rm -rf dist-release
+          ls -la dist-out
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: dist/*
+          path: dist-out/*
           if-no-files-found: error
 
   release:
@@ -68,10 +72,10 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: dist-out
           merge-multiple: true
       - name: Checksums
-        working-directory: dist
+        working-directory: dist-out
         run: |
           sha256sum zenith-* > SHA256SUMS
           cat SHA256SUMS
@@ -79,16 +83,16 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            dist/zenith-*
-            dist/SHA256SUMS
+            dist-out/zenith-*
+            dist-out/SHA256SUMS
       - name: Attach to a draft release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+            gh release upload "$GITHUB_REF_NAME" dist-out/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/* --draft --verify-tag \
+            gh release create "$GITHUB_REF_NAME" dist-out/* --draft --verify-tag \
               --title "Zenith $GITHUB_REF_NAME" --generate-notes
           fi

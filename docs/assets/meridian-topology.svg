@@ -124,7 +124,7 @@
     <rect x="0" y="0" width="288" height="2" rx="1" fill="#f59e0b"/>
     <text x="18" y="26" class="mono" font-size="9.5" font-weight="700" fill="#fbbf24" letter-spacing="0.8">2. VOID RETENTION</text>
     <text x="18" y="48" class="sans" font-size="13" font-weight="700" fill="#f8fafc">Lightweight Limbo Engine</text>
-    <text x="18" y="70" class="sans" font-size="11" fill="#94a3b8">Holds up to 5,000+ players in zero-chunk</text>
+    <text x="18" y="70" class="sans" font-size="11" fill="#94a3b8">Holds 5,000 to 85,000+ players in zero-chunk</text>
     <text x="18" y="88" class="sans" font-size="11" fill="#94a3b8">virtual space with animated BossBar,</text>
     <text x="18" y="106" class="sans" font-size="11" fill="#94a3b8">interactive chat, and sound alerts.</text>
     <text x="18" y="126" class="mono" font-size="10" font-weight="600" fill="#fbbf24">&lt; 10 MB RAM / 1,000 players</text>
