@@ -44,7 +44,7 @@ jobs:
           sha12="${GITHUB_SHA:0:12}"
           name="zenith-${sha12}-${{ matrix.name }}"
           mkdir -p "dist-release/$name"
-          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" "target/${{ matrix.target }}/release/${{ matrix.bench_exe }}" README.md LICENSE zenith.example.toml "dist-release/$name/"
+          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" "target/${{ matrix.target }}/release/${{ matrix.bench_exe }}" README.md LICENSE zenith.example.toml groups.toml "dist-release/$name/"
           if [ -d "dist/systemd" ]; then
             cp dist/install.sh dist/uninstall.sh "dist-release/$name/"
             cp -r dist/systemd "dist-release/$name/"

@@ -42,7 +42,7 @@ jobs:
         run: |
           dir="zenith-${GITHUB_REF_NAME}-${{ matrix.name }}"
           mkdir -p "dist-release/$dir"
-          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" README.md LICENSE zenith.example.toml "dist-release/$dir/"
+          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" README.md LICENSE zenith.example.toml groups.toml "dist-release/$dir/"
           if [ -d "dist/systemd" ]; then
             cp dist/install.sh dist/uninstall.sh "dist-release/$dir/"
             cp -r dist/systemd "dist-release/$dir/"

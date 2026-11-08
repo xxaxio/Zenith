@@ -382,7 +382,7 @@ mod tests {
         let mgr = GroupManager::default();
         // With default group only and no staff registered, all queries must return false
         assert!(!mgr.has_any_active_staff());
-        assert!(!mgr.is_staff("Axxio_HC"));
+        assert!(!mgr.is_staff("AdminUser"));
         assert!(!mgr.is_staff("random_user"));
         assert!(!mgr.is_staff("admin"));
     }

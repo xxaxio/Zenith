@@ -211,6 +211,44 @@ else
     log_info "Existing configuration preserved at ${CONFIG_FILE}"
 fi
 
+GROUPS_FILE="${CONFIG_DIR}/groups.toml"
+if [ ! -f "${GROUPS_FILE}" ]; then
+    log_info "Installing default priority groups configuration at ${GROUPS_FILE}..."
+    if [ -f "groups.toml" ]; then
+        cp "groups.toml" "${GROUPS_FILE}"
+    elif [ -f "dist/groups.toml" ]; then
+        cp "dist/groups.toml" "${GROUPS_FILE}"
+    else
+        cat <<'EOF' > "${GROUPS_FILE}"
+# Priority group configuration (LuckPerms style).
+# Players are ordered by descending weight in the transit queue (zenith-transit).
+
+[[groups]]
+name = "admin"
+weight = 1000
+is_staff = true
+members = [] # Example: ["AdminUser"]
+
+[[groups]]
+name = "vip"
+weight = 500
+is_staff = false
+members = [] # Example: ["VipPlayer"]
+
+[[groups]]
+name = "default"
+weight = 0
+is_staff = false
+members = []
+EOF
+    fi
+    chown root:zenith "${GROUPS_FILE}"
+    chmod 640 "${GROUPS_FILE}"
+    log_success "Configured groups file at ${GROUPS_FILE}"
+else
+    log_info "Existing groups configuration preserved at ${GROUPS_FILE}"
+fi
+
 # 7. Install systemd service unit
 log_info "Installing systemd service unit..."
 if [ -f "dist/systemd/zenith.service" ]; then

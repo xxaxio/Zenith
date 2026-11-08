@@ -319,11 +319,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
     let queue = Arc::new(Mutex::new(TransitQueue::new(transit_config)));
-    let groups_path = config
+    let raw_groups_path = config
         .queue
         .groups_file
         .clone()
         .unwrap_or_else(|| PathBuf::from("groups.toml"));
+    let groups_path = if raw_groups_path.is_relative() {
+        if let Some(ref cfg_p) = config_path {
+            if let Some(parent) = cfg_p.parent() {
+                let candidate = parent.join(&raw_groups_path);
+                if candidate.exists() {
+                    candidate
+                } else {
+                    raw_groups_path
+                }
+            } else {
+                raw_groups_path
+            }
+        } else {
+            raw_groups_path
+        }
+    } else {
+        raw_groups_path
+    };
     let group_manager = Arc::new(Mutex::new(GroupManager::new(Some(groups_path))));
     let hud = Arc::new(HudRenderer::new(DisplayConfig::default()));
     let active_sessions: ActiveSessions = Arc::new(Mutex::new(HashMap::new()));

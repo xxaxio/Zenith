@@ -96,7 +96,7 @@ mod tests {
     fn test_transit_token_drift_and_tampering() {
         let hmac = HmacForwarding::new("secret_key");
         let uuid = 0x1234_5678_9ABC_DEF0_1234_5678_9ABC_DEF0;
-        let user = "Axxio_HC";
+        let user = "Player1";
         let timestamp = 1_700_000_000;
 
         let token = hmac.create_transit_token(uuid, user, timestamp);

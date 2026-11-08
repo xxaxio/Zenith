@@ -588,7 +588,7 @@ mod tests {
     #[test]
     fn test_minecraft_username_validation() {
         assert!(is_valid_minecraft_username("Steve"));
-        assert!(is_valid_minecraft_username("Axxio_HC"));
+        assert!(is_valid_minecraft_username("Steve_77"));
         assert!(is_valid_minecraft_username("Player_123"));
         assert!(is_valid_minecraft_username("a"));
         assert!(is_valid_minecraft_username("1234567890123456"));

@@ -26,7 +26,7 @@ wave_size = 5
 wave_interval_ms = 4000
 
 # Queue priority hierarchy:
-# 1. Poids (Priority Weight from groups.toml: Staff > VIP > Default)
+# 1. Weight (Priority Weight from groups.toml: Staff > VIP > Default)
 # 2. FIFO (Arrival timestamp)
 # 3. Ping (Latency ascending)
 #

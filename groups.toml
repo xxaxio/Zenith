@@ -5,13 +5,13 @@
 name = "admin"
 weight = 1000
 is_staff = true
-members = ["Axxio_HC"]
+members = [] # Example: ["AdminUser"]
 
 [[groups]]
 name = "vip"
 weight = 500
 is_staff = false
-members = []
+members = [] # Example: ["VipPlayer"]
 
 [[groups]]
 name = "default"
