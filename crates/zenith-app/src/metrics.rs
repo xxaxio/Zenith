@@ -7,9 +7,9 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 
 /// Atomic operational metrics registry scraped by Prometheus.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ZenithMetrics {
-    pub active_sessions: AtomicUsize,
+    pub active_sessions: Arc<AtomicUsize>,
     pub queue_size: AtomicUsize,
     pub transfers_total: AtomicU64,
     pub totem_backend_online: AtomicBool,
@@ -20,6 +20,24 @@ pub struct ZenithMetrics {
     pub shield_jailed_ips: AtomicUsize,
     pub shield_challenges_failed_total: AtomicU64,
     pub shield_kernel_drops_total: AtomicU64,
+}
+
+impl Default for ZenithMetrics {
+    fn default() -> Self {
+        Self {
+            active_sessions: Arc::new(AtomicUsize::new(0)),
+            queue_size: AtomicUsize::new(0),
+            transfers_total: AtomicU64::new(0),
+            totem_backend_online: AtomicBool::new(false),
+            totem_latency_ms: AtomicU32::new(0),
+            turbo_mspt_us: AtomicU64::new(0),
+            shield_dropped_frames_total: AtomicU64::new(0),
+            shield_rate_limited_total: AtomicU64::new(0),
+            shield_jailed_ips: AtomicUsize::new(0),
+            shield_challenges_failed_total: AtomicU64::new(0),
+            shield_kernel_drops_total: AtomicU64::new(0),
+        }
+    }
 }
 
 impl ZenithMetrics {

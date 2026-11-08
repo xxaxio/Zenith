@@ -88,9 +88,10 @@ pub async fn run_limbo_holding(
         });
 
         handles.push(handle);
+        tokio::time::sleep(Duration::from_millis(3)).await;
 
         // Gentle stagger to prevent OS ephemeral port exhaustion
-        if i % 100 == 0 {
+        if false {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     }

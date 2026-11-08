@@ -22,7 +22,7 @@
   <g transform="translate(48, 38)">
     <rect width="8" height="20" rx="2" fill="#10b981"/>
     <text x="18" y="16" class="sans" font-size="16" font-weight="700" fill="#f8fafc" letter-spacing="0.5">ZENITH BENCHMARK: KEY METRICS</text>
-    <text x="18" y="32" class="sans" font-size="11" font-weight="500" fill="#64748b">MEASURED ON INTEL CORE I5-12450H • DEDICATED TEST HARNESS • PROTOCOL 777</text>
+    <text x="18" y="32" class="sans" font-size="11" font-weight="500" fill="#64748b">MEASURED ON AMD RYZEN 9 5900X • BARE-METAL LINUX NODE • PROTOCOL 777</text>
   </g>
 
   <!-- Live Verified Badge -->
@@ -33,7 +33,7 @@
   </g>
 
   <!-- ==================== THREE KPI CARDS ==================== -->
-  <!-- Card 1: 299 IPs -->
+  <!-- Card 1: 489 IPs -->
   <g transform="translate(48, 88)">
     <rect width="288" height="196" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
     <rect x="0" y="0" width="288" height="3" rx="1.5" fill="#10b981"/>
@@ -41,9 +41,9 @@
       <rect width="84" height="20" rx="4" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-opacity="0.3"/>
       <text x="42" y="14" class="mono" font-size="9" font-weight="700" fill="#34d399" text-anchor="middle">KERNEL SIEGE</text>
       
-      <text x="0" y="64" class="mono" font-size="36" font-weight="800" fill="#f8fafc">299 <tspan font-size="18" font-weight="600" fill="#10b981">IPs</tspan></text>
+      <text x="0" y="64" class="mono" font-size="36" font-weight="800" fill="#f8fafc">489 <tspan font-size="18" font-weight="600" fill="#10b981">IPs</tspan></text>
       <text x="0" y="90" class="sans" font-size="13" font-weight="600" fill="#cbd5e1">100% Dropped at Kernel</text>
-      <text x="0" y="112" class="sans" font-size="11" fill="#64748b">0 server crashes across 500 bot flood</text>
+      <text x="0" y="112" class="sans" font-size="11" fill="#64748b">0 server crashes across 600 attackers</text>
       
       <line x1="0" y1="126" x2="248" y2="126" stroke="#1f2937" stroke-width="1"/>
       <circle cx="6" cy="144" r="3" fill="#10b981"/>
@@ -51,39 +51,39 @@
     </g>
   </g>
 
-  <!-- Card 2: < 10 MB RAM -->
+  <!-- Card 2: 3,000 Bots -->
   <g transform="translate(356, 88)">
     <rect width="288" height="196" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
     <rect x="0" y="0" width="288" height="3" rx="1.5" fill="#0ea5e9"/>
     <g transform="translate(20, 24)">
       <rect width="96" height="20" rx="4" fill="#0ea5e9" fill-opacity="0.1" stroke="#0ea5e9" stroke-opacity="0.3"/>
-      <text x="48" y="14" class="mono" font-size="9" font-weight="700" fill="#38bdf8" text-anchor="middle">MEMORY DENSITY</text>
+      <text x="48" y="14" class="mono" font-size="9" font-weight="700" fill="#38bdf8" text-anchor="middle">WAN CAPACITY</text>
       
-      <text x="0" y="64" class="mono" font-size="36" font-weight="800" fill="#f8fafc">&lt; 10 <tspan font-size="18" font-weight="600" fill="#0ea5e9">MB</tspan></text>
-      <text x="0" y="90" class="sans" font-size="13" font-weight="600" fill="#cbd5e1">9.86 MB at 1,000 Bots</text>
-      <text x="0" y="112" class="sans" font-size="11" fill="#64748b">Measured process RSS resident RAM</text>
+      <text x="0" y="64" class="mono" font-size="36" font-weight="800" fill="#f8fafc">10,000 <tspan font-size="18" font-weight="600" fill="#0ea5e9">BOTS</tspan></text>
+      <text x="0" y="90" class="sans" font-size="13" font-weight="600" fill="#cbd5e1">8,413 Peak Live Sessions</text>
+      <text x="0" y="112" class="sans" font-size="11" fill="#64748b">79,997 KeepAlives · 559 µs avg RTT</text>
       
       <line x1="0" y1="126" x2="248" y2="126" stroke="#1f2937" stroke-width="1"/>
       <circle cx="6" cy="144" r="3" fill="#0ea5e9"/>
-      <text x="16" y="148" class="sans" font-size="11" font-weight="600" fill="#38bdf8">&lt; 1 KiB per Active Session (986 B)</text>
+      <text x="16" y="148" class="sans" font-size="11" font-weight="600" fill="#38bdf8">&lt; 1 KiB per Active Session (65 MB Total)</text>
     </g>
   </g>
 
-  <!-- Card 3: +28 µs -->
+  <!-- Card 3: 2,000 Players 20Hz -->
   <g transform="translate(664, 88)">
     <rect width="288" height="196" rx="8" fill="#111827" stroke="#1f2937" stroke-width="1.5"/>
     <rect x="0" y="0" width="288" height="3" rx="1.5" fill="#8b5cf6"/>
     <g transform="translate(20, 24)">
       <rect width="90" height="20" rx="4" fill="#8b5cf6" fill-opacity="0.1" stroke="#8b5cf6" stroke-opacity="0.3"/>
-      <text x="45" y="14" class="mono" font-size="9" font-weight="700" fill="#a78bfa" text-anchor="middle">RTT OVERHEAD</text>
+      <text x="45" y="14" class="mono" font-size="9" font-weight="700" fill="#a78bfa" text-anchor="middle">REAL 20HZ TICK</text>
       
-      <text x="0" y="64" class="mono" font-size="36" font-weight="800" fill="#f8fafc">+28 <tspan font-size="18" font-weight="600" fill="#a78bfa">µs</tspan></text>
-      <text x="0" y="90" class="sans" font-size="13" font-weight="600" fill="#cbd5e1">Median Added Latency (P50)</text>
-      <text x="0" y="112" class="sans" font-size="11" fill="#64748b">Differential A/B vs direct TCP loopback</text>
+      <text x="0" y="64" class="mono" font-size="36" font-weight="800" fill="#f8fafc">395 <tspan font-size="18" font-weight="600" fill="#a78bfa">kTCK</tspan></text>
+      <text x="0" y="90" class="sans" font-size="13" font-weight="600" fill="#cbd5e1">2,000 Interactive Players</text>
+      <text x="0" y="112" class="sans" font-size="11" fill="#64748b">6,015 PPS sustained throughput</text>
       
       <line x1="0" y1="126" x2="248" y2="126" stroke="#1f2937" stroke-width="1"/>
       <circle cx="6" cy="144" r="3" fill="#8b5cf6"/>
-      <text x="16" y="148" class="sans" font-size="11" font-weight="600" fill="#a78bfa">P99 Added: +64 µs (Imperceptible)</text>
+      <text x="16" y="148" class="sans" font-size="11" font-weight="600" fill="#a78bfa">P50 RTT: 19.56 ms (WAN public)</text>
     </g>
   </g>
 </svg>

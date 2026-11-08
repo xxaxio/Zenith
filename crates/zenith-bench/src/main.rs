@@ -112,12 +112,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let secs: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(20);
             let concurrency: usize = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(count);
             let (host, port) = parse_host_port(&target);
-            let metrics_url = "127.0.0.1:25580";
+            let metrics_url = resolve_metrics_url(&host);
 
             scenarios::run_limbo_ultimate(
                 &host,
                 port,
-                metrics_url,
+                &metrics_url,
                 count,
                 Duration::from_secs(secs),
                 concurrency,
@@ -134,12 +134,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let secs: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(15);
             let concurrency: usize = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(300);
             let (host, port) = parse_host_port(&target);
-            let metrics_url = "127.0.0.1:25580";
+            let metrics_url = resolve_metrics_url(&host);
 
             scenarios::run_limbo_holding(
                 &host,
                 port,
-                metrics_url,
+                &metrics_url,
                 count,
                 Duration::from_secs(secs),
                 concurrency,
@@ -173,12 +173,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let concurrency: usize = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(100);
 
             let (host, port) = parse_host_port(&target);
-            let metrics_url = "127.0.0.1:25580";
+            let metrics_url = resolve_metrics_url(&host);
 
             scenarios::run_adversary_storm(
                 &host,
                 port,
-                metrics_url,
+                &metrics_url,
                 count,
                 proxy_path.as_deref(),
                 concurrency,
@@ -196,12 +196,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let concurrency: usize = args.get(6).and_then(|s| s.parse().ok()).unwrap_or(150);
 
             let (host, port) = parse_host_port(&target);
-            let metrics_url = "127.0.0.1:25580";
+            let metrics_url = resolve_metrics_url(&host);
 
             scenarios::run_kernel_siege(
                 &host,
                 port,
-                metrics_url,
+                &metrics_url,
                 attackers,
                 legit,
                 Duration::from_secs(secs),
@@ -243,12 +243,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let secs: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(15);
             let concurrency: usize = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(300);
             let (host, port) = parse_host_port(&target);
-            let metrics_url = "127.0.0.1:25580";
+            let metrics_url = resolve_metrics_url(&host);
 
             scenarios::run_phase7_bench(
                 &host,
                 port,
-                metrics_url,
+                &metrics_url,
                 count,
                 Duration::from_secs(secs),
                 concurrency,
@@ -270,6 +270,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn resolve_metrics_url(host: &str) -> String {
+    if let Ok(custom) = env::var("ZENITH_METRICS_URL") {
+        if !custom.trim().is_empty() {
+            return custom;
+        }
+    }
+    if host == "127.0.0.1" || host == "localhost" {
+        "127.0.0.1:25580".to_string()
+    } else {
+        format!("{host}:9100")
+    }
 }
 
 fn parse_host_port(s: &str) -> (String, u16) {

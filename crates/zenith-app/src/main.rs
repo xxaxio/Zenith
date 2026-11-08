@@ -813,6 +813,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             session.set_client_ip(client_ip);
             session.set_event_sender(event_tx_clone);
             session.set_fingerprint_config(task_fp_config);
+            session.set_online_counter(Arc::clone(&task_metrics.active_sessions));
 
             match session.complete_handshake_and_login().await {
                 Ok(None) => {

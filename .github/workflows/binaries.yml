@@ -22,10 +22,12 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             exe: zenith
+            bench_exe: zenith-bench
           - name: windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             exe: zenith.exe
+            bench_exe: zenith-bench.exe
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -33,14 +35,16 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - name: Build release binary
-        run: cargo build --release --locked -p zenith-app --bin zenith --target ${{ matrix.target }}
+        run: |
+          cargo build --release --locked -p zenith-app --bin zenith --target ${{ matrix.target }}
+          cargo build --release --locked -p zenith-bench --bin zenith-bench --target ${{ matrix.target }}
       - name: Package
         shell: bash
         run: |
           sha12="${GITHUB_SHA:0:12}"
           name="zenith-${sha12}-${{ matrix.name }}"
           mkdir -p "dist/$name"
-          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" README.md LICENSE zenith.example.toml "dist/$name/"
+          cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" "target/${{ matrix.target }}/release/${{ matrix.bench_exe }}" README.md LICENSE zenith.example.toml "dist/$name/"
           cd dist
           if [ "${{ runner.os }}" = "Windows" ]; then
             7z a -tzip "$name.zip" "$name" > /dev/null

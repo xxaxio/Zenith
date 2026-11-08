@@ -196,6 +196,7 @@ pub struct VirtualSession<S> {
     pub fingerprint: zenith_shield::ClientFingerprint,
     pub fingerprint_config: Option<zenith_shield::FingerprintConfig>,
     pub online_mode: OnlineModeConfig,
+    pub online_counter: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
     pub cmd_rx: Option<tokio::sync::mpsc::UnboundedReceiver<SessionCommand>>,
     pub event_tx: Option<tokio::sync::mpsc::UnboundedSender<SessionEvent>>,
 }
@@ -223,6 +224,7 @@ impl<S: ConnectionStream> VirtualSession<S> {
             fingerprint: zenith_shield::ClientFingerprint::default(),
             fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
             online_mode: OnlineModeConfig::Offline,
+            online_counter: None,
             cmd_rx: None,
             event_tx: None,
         }
@@ -239,6 +241,10 @@ impl<S: ConnectionStream> VirtualSession<S> {
     }
 
     /// Configures the server authentication mode (offline or full online Mojang crypto).
+    pub fn set_online_counter(&mut self, counter: std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+        self.online_counter = Some(counter);
+    }
+
     pub fn set_online_mode(&mut self, config: OnlineModeConfig) {
         self.online_mode = config;
     }
@@ -264,6 +270,7 @@ impl<S: ConnectionStream> VirtualSession<S> {
             fingerprint: zenith_shield::ClientFingerprint::default(),
             fingerprint_config: Some(zenith_shield::FingerprintConfig::default()),
             online_mode: OnlineModeConfig::Offline,
+            online_counter: None,
             cmd_rx: Some(cmd_rx),
             event_tx: None,
         }
@@ -396,9 +403,14 @@ impl<S: ConnectionStream> VirtualSession<S> {
             });
         }
 
+        let online = self
+            .online_counter
+            .as_ref()
+            .map(|c| c.load(Ordering::Relaxed))
+            .unwrap_or(0);
         let status_json = format!(
-            r#"{{"version":{{"name":"26.3","protocol":{}}},"players":{{"max":10000,"online":1}},"description":{{"text":"§bZenith §8» §7Virtual Holding & Transit"}}}}"#,
-            PROTOCOL_VERSION
+            r#"{{"version":{{"name":"26.3","protocol":{}}},"players":{{"max":100000,"online":{}}},"description":{{"text":"§bZenith §8» §7Virtual Holding & Transit"}}}}"#,
+            PROTOCOL_VERSION, online
         );
 
         let mut resp_payload = BytesMut::new();
