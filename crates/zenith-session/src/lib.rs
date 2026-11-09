@@ -709,7 +709,7 @@ impl<S: ConnectionStream> VirtualSession<S> {
         // 6. Clean, concise 1-line welcome in chat
         let user = self.username.clone().unwrap_or_else(|| "Player".into());
         let welcome_text = format!(
-            "{} §7Welcome §f{}§7. Please hold while waiting in queue.",
+            "{} §7Welcome §e{}§7. Please hold while waiting in queue.",
             zenith_display::BRAND_PREFIX,
             user
         );

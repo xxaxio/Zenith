@@ -3,13 +3,13 @@
 use crate::component::ChatComponent;
 
 /// Precomputed legacy RGB brand string for `ᴢᴇɴɪᴛʜ` with 24-bit Solar Ember gradient (#FF3700 -> #FFAA00).
-pub const BRAND_LOGO_LEGACY: &str = "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ";
+pub const BRAND_LOGO_LEGACY: &str = "§c§lᴢ§6§lᴇ§6§lɴ§e§lɪ§e§lᴛ§e§lʜ";
 
 /// Precomputed chat prefix: `<gradient>ᴢᴇɴɪᴛʜ</gradient> §8»`
-pub const BRAND_PREFIX: &str = "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8»";
+pub const BRAND_PREFIX: &str = "§c§lᴢ§6§lᴇ§6§lɴ§e§lɪ§e§lᴛ§e§lʜ §8»";
 
 /// Precomputed spaced title logo for welcome titles: `ᴢ ᴇ ɴ ɪ ᴛ ʜ` with wide radiant gradient (#FF3700 -> #FFD000).
-pub const BRAND_TITLE_LEGACY: &str = "§x§f§f§3§7§0§0§lᴢ §x§f§f§5§5§0§0§lᴇ §x§f§f§7§4§0§0§lɴ §x§f§f§9§2§0§0§lɪ §x§f§f§b§1§0§0§lᴛ §x§f§f§d§0§0§0§lʜ";
+pub const BRAND_TITLE_LEGACY: &str = "§c§lᴢ §6§lᴇ §6§lɴ §e§lɪ §e§lᴛ §e§lʜ";
 
 /// Represents an RGB color with 8-bit channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +48,83 @@ impl RgbColor {
             (self.2 >> 4) & 0xF,
             self.2 & 0xF
         )
+    }
+
+    /// Converts this color to the most visually accurate Minecraft 16-color legacy code (§0-§f).
+    /// This prevents modern clients from misinterpreting legacy hex codes (§x) into black or green.
+    #[must_use]
+    pub fn to_vanilla_code(&self) -> &'static str {
+        // Solar Ember palette specific mappings:
+        // Deep Magma / Crimson Red (#FF3700 - #FF5500) -> §c
+        if self.0 > 220 && self.1 < 80 && self.2 < 80 {
+            return "§c";
+        }
+        // Vibrant Gold / Warm Amber (#FFAA00 - #FF8800) -> §6
+        if self.0 > 220 && self.1 >= 80 && self.1 < 190 && self.2 < 80 {
+            return "§6";
+        }
+        // Solar Yellow (#FFD000 - #FFFF55) -> §e
+        if self.0 > 200 && self.1 >= 190 && self.2 < 120 {
+            return "§e";
+        }
+        // Silver / Cool Gray (#AAAAAA) -> §7
+        if self.0 >= 140
+            && self.0 <= 190
+            && self.1 >= 140
+            && self.1 <= 190
+            && self.2 >= 140
+            && self.2 <= 190
+        {
+            return "§7";
+        }
+        // Steel / Dark Gray (#555555 - #777777) -> §8
+        if self.0 >= 60
+            && self.0 < 140
+            && self.1 >= 60
+            && self.1 < 140
+            && self.2 >= 60
+            && self.2 < 140
+        {
+            return "§8";
+        }
+        // Pure White (#FFFFFF) -> §f
+        if self.0 > 230 && self.1 > 230 && self.2 > 230 {
+            return "§f";
+        }
+
+        // Palette fallback
+        let palette: [(RgbColor, &'static str); 16] = [
+            (RgbColor(0, 0, 0), "§0"),
+            (RgbColor(0, 0, 170), "§1"),
+            (RgbColor(0, 170, 0), "§2"),
+            (RgbColor(0, 170, 170), "§3"),
+            (RgbColor(170, 0, 0), "§4"),
+            (RgbColor(170, 0, 170), "§5"),
+            (RgbColor(255, 170, 0), "§6"),
+            (RgbColor(170, 170, 170), "§7"),
+            (RgbColor(85, 85, 85), "§8"),
+            (RgbColor(85, 85, 255), "§9"),
+            (RgbColor(85, 255, 85), "§a"),
+            (RgbColor(85, 255, 255), "§b"),
+            (RgbColor(255, 85, 85), "§c"),
+            (RgbColor(255, 85, 255), "§d"),
+            (RgbColor(255, 255, 85), "§e"),
+            (RgbColor(255, 255, 255), "§f"),
+        ];
+
+        let mut closest = "§f";
+        let mut min_dist = u32::MAX;
+        for (col, code) in &palette {
+            let dr = self.0 as i32 - col.0 as i32;
+            let dg = self.1 as i32 - col.1 as i32;
+            let db = self.2 as i32 - col.2 as i32;
+            let dist = (dr * dr + dg * dg + db * db) as u32;
+            if dist < min_dist {
+                min_dist = dist;
+                closest = code;
+            }
+        }
+        closest
     }
 
     /// Linearly interpolates between two colors with factor `t` in `[0.0, 1.0]`.
@@ -192,6 +269,15 @@ mod tests {
     fn test_legacy_code_formatting() {
         let col = RgbColor(255, 170, 0); // #ffaa00
         assert_eq!(col.to_legacy_code(), "§x§f§f§a§a§0§0");
+    }
+
+    #[test]
+    fn test_vanilla_code_mapping() {
+        assert_eq!(RgbColor(255, 55, 0).to_vanilla_code(), "§c"); // Magma
+        assert_eq!(RgbColor(255, 170, 0).to_vanilla_code(), "§6"); // Gold
+        assert_eq!(RgbColor(255, 208, 0).to_vanilla_code(), "§e"); // Yellow
+        assert_eq!(RgbColor(170, 170, 170).to_vanilla_code(), "§7"); // Silver
+        assert_eq!(RgbColor(85, 85, 85).to_vanilla_code(), "§8"); // Steel
     }
 
     #[test]

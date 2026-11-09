@@ -29,7 +29,7 @@ pub enum BossBarDivision {
 /// Complete configuration for HUD rendering, typography, and audio cues.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayConfig {
-    /// Enable small-caps formatting for labels (e.g. "QUEUE" -> "Qá´œá´‡á´œá´‡")
+    /// Enable small-caps formatting for labels (e.g. "Position" -> "ᴘᴏsɪᴛɪᴏɴ")
     pub small_caps: bool,
 
     /// Primary brand gradient start hex (default flame: #FF3700)
@@ -101,13 +101,13 @@ impl Default for DisplayConfig {
             gradient_start: "#FF3700".into(),
             gradient_end: "#FFAA00".into(),
             accent_color: "#FFD000".into(),
-            queue_title: "QUEUE".into(),
+            queue_title: "ZENITH".into(),
             paused_title: "QUEUE PAUSED".into(),
-            starting_title: "SERVER STARTING".into(),
+            starting_title: "SERVER RESTARTING".into(),
             throttled_title: "QUEUE THROTTLED".into(),
             transfer_title: "CONNECTING TO TARGET SERVER...".into(),
-            position_label: "POSITION".into(),
-            eta_label: "EST. WAIT".into(),
+            position_label: "Position".into(),
+            eta_label: "Est. Wait".into(),
             active_color: BossBarColor::Yellow,
             paused_color: BossBarColor::Red,
             offline_color: BossBarColor::Red,

@@ -58,14 +58,15 @@ impl ChatComponent {
 
     /// Serializes the component into Minecraft section-sign (§) formatted legacy text for network NBT.
     ///
-    /// Supports both standard 16 colors and 24-bit True RGB hex codes (§x§r§r§g§g§b§b).
+    /// Maps RGB hex colors to high-contrast, universally supported Minecraft 16-color codes
+    /// to avoid client-side parsing bugs (where `§x` defaults to black or lime green).
     #[must_use]
     pub fn to_legacy_string(&self) -> String {
         let mut out = String::new();
         fn append_comp(c: &ChatComponent, out: &mut String) {
             if let Some(col) = &c.color {
                 if let Some(rgb) = RgbColor::from_hex(col) {
-                    out.push_str(&rgb.to_legacy_code());
+                    out.push_str(rgb.to_vanilla_code());
                 } else {
                     match col.as_str() {
                         "red" => out.push_str("§c"),
@@ -130,7 +131,7 @@ pub fn build_bossbar_title(
         root.add_extra(comp);
     }
 
-    // Separator (fine gray)
+    // Separator (fine steel gray)
     root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
 
     // Section 2: Position (Label in cool gray, numbers in amber highlight)
@@ -144,14 +145,10 @@ pub fn build_bossbar_title(
         &config.gradient_end,
         true,
     ));
-    root.add_extra(ChatComponent::styled(" §8/ §6", "#777777", false));
-    root.add_extra(ChatComponent::styled(
-        format!("{total}"),
-        &config.accent_color,
-        false,
-    ));
+    root.add_extra(ChatComponent::styled(" §8/ §7", "#777777", false));
+    root.add_extra(ChatComponent::styled(format!("{total}"), "#aaaaaa", false));
 
-    // Separator (fine gray)
+    // Separator (fine steel gray)
     root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
 
     // Section 3: ETA (Label in cool gray, time in warm gold)
@@ -171,7 +168,7 @@ pub fn build_bossbar_title(
 }
 
 /// Builds the sleek, minimal BossBar title for Limbo / Holding mode:
-/// `<gradient>ᴢᴇɴɪᴛʜ</gradient> §8│ §7Online: §x...#1`
+/// `ᴢᴇɴɪᴛʜ §8│ §7Virtual Holding §8│ §e#1 Players`
 #[must_use]
 pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) -> ChatComponent {
     let zenith_text = if config.small_caps {
@@ -179,10 +176,10 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
     } else {
         "Zenith".to_string()
     };
-    let online_label = if config.small_caps {
-        to_small_caps("Online")
+    let holding_label = if config.small_caps {
+        to_small_caps("Virtual Holding")
     } else {
-        "Online".to_string()
+        "Virtual Holding".to_string()
     };
 
     let mut root = ChatComponent::plain("");
@@ -197,14 +194,23 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
 
     root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
     root.add_extra(ChatComponent::styled(
-        format!("{online_label}: "),
+        format!("{holding_label} §8│ "),
         "#aaaaaa",
         false,
     ));
     root.add_extra(ChatComponent::styled(
-        format!("#{online_count}"),
+        format!("#{online_count} "),
         &config.accent_color,
         true,
+    ));
+    root.add_extra(ChatComponent::styled(
+        if online_count == 1 {
+            "Player"
+        } else {
+            "Players"
+        },
+        "#aaaaaa",
+        false,
     ));
 
     root
@@ -213,22 +219,13 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
 /// Builds the Actionbar text for Limbo / Holding mode.
 #[must_use]
 pub fn build_limbo_actionbar_component(config: &DisplayConfig) -> ChatComponent {
-    let holding_label = if config.small_caps {
-        to_small_caps("Holding")
-    } else {
-        "Holding".to_string()
-    };
-
     let mut root = ChatComponent::plain("");
-    for comp in gradient_components(
-        &holding_label,
-        &config.gradient_start,
-        &config.gradient_end,
-        true,
-    ) {
-        root.add_extra(comp);
-    }
-    root.add_extra(ChatComponent::styled(" §8│ §7Type ", "#555555", false));
+    root.add_extra(ChatComponent::styled("§e§l● ", &config.accent_color, true));
+    root.add_extra(ChatComponent::styled(
+        "Virtual Holding Dimension §8│ §7Type ",
+        "#aaaaaa",
+        false,
+    ));
     root.add_extra(ChatComponent::styled(
         "/transfer",
         &config.accent_color,
@@ -238,7 +235,7 @@ pub fn build_limbo_actionbar_component(config: &DisplayConfig) -> ChatComponent 
     root
 }
 
-/// Builds an actionbar status component (`Position: #X / Y │ Wait: ~mm:ss`).
+/// Builds an actionbar status component (`● Queue: #1 (1 in line) │ Est: ~mm:ss`).
 #[must_use]
 pub fn build_actionbar_component(
     config: &DisplayConfig,
@@ -246,40 +243,25 @@ pub fn build_actionbar_component(
     total: usize,
     eta_seconds: u64,
 ) -> ChatComponent {
-    let pos_label = if config.small_caps {
-        to_small_caps(&config.position_label)
-    } else {
-        config.position_label.clone()
-    };
-    let eta_label = if config.small_caps {
-        to_small_caps(&config.eta_label)
-    } else {
-        config.eta_label.clone()
-    };
-
     let mut root = ChatComponent::plain("");
-    root.add_extra(ChatComponent::styled(
-        format!("{pos_label}: "),
-        "#aaaaaa",
-        false,
-    ));
+    root.add_extra(ChatComponent::styled("§6§l● ", &config.gradient_end, true));
+    root.add_extra(ChatComponent::styled("Queue: ", "#aaaaaa", false));
     root.add_extra(ChatComponent::styled(
         format!("#{position}"),
         &config.gradient_end,
         true,
     ));
     root.add_extra(ChatComponent::styled(
-        format!(" §8/ §6{total} §8│ "),
+        format!(" §8(§7{total} in line§8)"),
         "#777777",
         false,
     ));
+    root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
+
+    let time_str = format_eta(eta_seconds);
+    root.add_extra(ChatComponent::styled("Est: ", "#aaaaaa", false));
     root.add_extra(ChatComponent::styled(
-        format!("{eta_label}: "),
-        "#aaaaaa",
-        false,
-    ));
-    root.add_extra(ChatComponent::styled(
-        format!("~{}", format_eta(eta_seconds)),
+        format!("~{time_str}"),
         &config.accent_color,
         true,
     ));
@@ -304,16 +286,16 @@ mod tests {
     fn test_component_to_legacy_string_hex() {
         let comp = ChatComponent::styled("TEST", "#ffaa00", true);
         let legacy = comp.to_legacy_string();
-        assert_eq!(legacy, "§x§f§f§a§a§0§0§lTEST");
+        assert_eq!(legacy, "§6§lTEST");
     }
 
     #[test]
     fn test_bossbar_title_building() {
         let config = DisplayConfig::default();
-        let title = build_bossbar_title(&config, "QUEUE", 1, 10, 30);
+        let title = build_bossbar_title(&config, "ZENITH", 1, 10, 30);
         let legacy = title.to_legacy_string();
-        assert!(legacy.contains("§x"));
         assert!(legacy.contains("#1"));
+        assert!(legacy.contains("│"));
     }
 
     #[test]
@@ -321,7 +303,7 @@ mod tests {
         let config = DisplayConfig::default();
         let title = build_limbo_bossbar_title(&config, 5);
         let legacy = title.to_legacy_string();
-        assert!(legacy.contains("§x"));
         assert!(legacy.contains("#5"));
+        assert!(legacy.contains("│"));
     }
 }

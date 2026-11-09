@@ -426,12 +426,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if notify_down {
                         let sessions = totem_sessions.lock().await;
                         let times = encode_title_times_packet(5, 50, 15);
-                        let sub = encode_subtitle_packet(
-                            "§c§lBACKEND RESTARTING §7Recovery in progress...",
-                        );
-                        let title = encode_title_packet("§c⚠");
+                        let sub = encode_subtitle_packet("§cServer restarting §8— §eSafe in Limbo");
+                        let title = encode_title_packet(zenith_display::BRAND_TITLE_LEGACY);
                         let chat = encode_system_chat_packet(
-                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
+                            &format!(
+                                "{} §c§lALERT: §7Target server is offline. You are safe in virtual holding!",
+                                zenith_display::BRAND_PREFIX
+                            ),
                             false,
                         );
 
@@ -466,13 +467,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if notify_up {
                         let sessions = totem_sessions.lock().await;
                         let times = encode_title_times_packet(5, 50, 15);
-                        let sub = encode_subtitle_packet(
-                            "§a§lBACKEND READY §7Resuming automatic transfers...",
-                        );
-                        let title = encode_title_packet("§a▶");
+                        let sub =
+                            encode_subtitle_packet("§a§lBACKEND READY §7— Reconnecting now...");
+                        let title = encode_title_packet("§a§l▶ READY");
                         let chat = encode_system_chat_packet(
                             &format!(
-                                "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §a§lBACKEND ONLINE! §7Ping: §e{}ms§7. Preparing transfers...",
+                                "{} §a§lBACKEND ONLINE! §7Ping: §e{}ms§7. Preparing transfer...",
+                                zenith_display::BRAND_PREFIX,
                                 latency_ms
                             ),
                             false,
@@ -524,7 +525,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let limbo_actionbar = if mode == ZenithMode::Limbo {
                 Some(
                     if hud_totem_enabled && !hud_health_rx.borrow().is_available() {
-                        zenith_display::encode_actionbar_packet("§c§l● §7Target backend offline")
+                        zenith_display::encode_actionbar_packet(
+                            "§c§l● §cTarget server offline §8— §7Waiting for recovery...",
+                        )
                     } else {
                         hud_renderer.render_limbo_actionbar()
                     },
@@ -552,7 +555,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         * (nominal_interval_ms / 1000);
 
                     // Send Actionbar
-                    let actionbar = hud_renderer.render_actionbar(pos, total, eta_seconds);
+                    let is_backend_offline =
+                        hud_totem_enabled && !hud_health_rx.borrow().is_available();
+                    let actionbar = if is_backend_offline {
+                        zenith_display::encode_actionbar_packet(
+                            "§c§l● §cTarget server offline §8— §7Waiting for recovery...",
+                        )
+                    } else {
+                        hud_renderer.render_actionbar(pos, total, eta_seconds)
+                    };
                     let _ = tx.send(SessionCommand::SendRaw(actionbar));
 
                     // Send Bossbar update & click sound on position change
@@ -562,8 +573,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let _ = tx.send(SessionCommand::SendRaw(click));
                             }
                         }
-                        let (title_pkt, health_pkt) =
-                            hud_renderer.render_bossbar_update(*bb_uuid, pos, total, eta_seconds);
+                        let (title_pkt, health_pkt) = if is_backend_offline {
+                            let offline_title = format!(
+                                "{} §8│ §cServer Restarting §8│ §7Secured in Limbo",
+                                zenith_display::BRAND_LOGO_LEGACY
+                            );
+                            (
+                                zenith_display::encode_bossbar_title(*bb_uuid, &offline_title),
+                                zenith_display::encode_bossbar_health(*bb_uuid, 1.0),
+                            )
+                        } else {
+                            hud_renderer.render_bossbar_update(*bb_uuid, pos, total, eta_seconds)
+                        };
                         let _ = tx.send(SessionCommand::SendRaw(title_pkt));
                         let _ = tx.send(SessionCommand::SendRaw(health_pkt));
                         *last_pos = pos;
@@ -640,7 +661,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let _ = tx.send(SessionCommand::SendRaw(snd));
                             }
                             let chat_msg = encode_system_chat_packet(
-                                "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aYour turn has arrived! Transfer in progress...",
+                                &format!(
+                                    "{} §aYour turn has arrived! Transfer in progress...",
+                                    zenith_display::BRAND_PREFIX
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(chat_msg));
