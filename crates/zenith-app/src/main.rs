@@ -169,6 +169,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let bind_addr = config.server.bind.clone();
     let target_server = config.server.target.clone();
+    let transfer_target = config.server.effective_transfer_target().to_string();
     let wave_size = config.queue.wave_size;
     let wave_interval_ms = config.queue.wave_interval_ms;
     let mode = match config.server.mode.to_lowercase().as_str() {
@@ -179,7 +180,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Starting Zenith v0.1.0 (Protocol 777 / Minecraft 26.3)...");
     info!("Operating Mode: {:?}", mode);
-    info!("Target backend: {}", target_server);
+    info!(
+        "Target backend: {} (Transfer destination: {})",
+        target_server, transfer_target
+    );
     if mode == ZenithMode::Queue {
         info!(
             "Wave settings: {} players every {}ms",
@@ -705,7 +709,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         group_mgr: Arc::clone(&group_manager),
         sessions: Arc::clone(&active_sessions),
         is_queue_active: Arc::clone(&is_queue_active),
-        target_server: target_server.clone(),
+        target_server: transfer_target.clone(),
         hud: Arc::clone(&hud),
         health_rx: cmd_health_rx,
         totem_enabled: config.totem.enabled,
@@ -913,7 +917,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let group_clone = Arc::clone(&group_manager);
         let hud_clone = Arc::clone(&hud);
         let sessions_clone = Arc::clone(&active_sessions);
-        let target_clone = target_server.clone();
+        let target_clone = transfer_target.clone();
         let event_tx_clone = event_tx.clone();
         let task_metrics = Arc::clone(&loop_metrics);
         let task_fp_config = fp_config.clone();

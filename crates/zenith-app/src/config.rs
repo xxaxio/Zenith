@@ -10,10 +10,19 @@ pub struct ServerConfig {
     pub bind: String,
     #[serde(default = "default_target")]
     pub target: String,
+    #[serde(default)]
+    pub transfer_target: Option<String>,
     #[serde(default = "default_mode")]
     pub mode: String,
     #[serde(default = "default_online_mode")]
     pub online_mode: bool,
+}
+
+impl ServerConfig {
+    #[must_use]
+    pub fn effective_transfer_target(&self) -> &str {
+        self.transfer_target.as_deref().unwrap_or(&self.target)
+    }
 }
 
 fn default_bind() -> String {
@@ -34,6 +43,7 @@ impl Default for ServerConfig {
         Self {
             bind: default_bind(),
             target: default_target(),
+            transfer_target: None,
             mode: default_mode(),
             online_mode: default_online_mode(),
         }
@@ -406,6 +416,9 @@ impl ZenithConfig {
         }
         if let Ok(t) = env::var("ZENITH_TARGET") {
             config.server.target = t;
+        }
+        if let Ok(tt) = env::var("ZENITH_TRANSFER_TARGET") {
+            config.server.transfer_target = Some(tt);
         }
         if let Ok(m) = env::var("ZENITH_MODE") {
             config.server.mode = m;
