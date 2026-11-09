@@ -100,6 +100,22 @@ impl GroupManager {
         }
     }
 
+    /// Returns the configured path to `groups.toml`, if any.
+    pub fn config_path(&self) -> Option<&Path> {
+        self.config_path.as_deref()
+    }
+
+    /// Reloads groups from the configured file path on disk.
+    pub fn reload(&mut self) -> Result<(), String> {
+        if let Some(ref path) = self.config_path.clone() {
+            if path.exists() {
+                self.load_from_path(path)?;
+                tracing::info!(path = %path.display(), "Reloaded groups from disk");
+            }
+        }
+        Ok(())
+    }
+
     /// Loads groups from a TOML file.
     pub fn load_from_path(&mut self, path: &Path) -> Result<(), String> {
         let content = fs::read_to_string(path).map_err(|e| e.to_string())?;

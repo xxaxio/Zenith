@@ -415,13 +415,56 @@ impl FirewallBackend for IpsetBackend {
     }
 }
 
+/// Matches an IP address against exact IP addresses or CIDR blocks (e.g. `10.0.0.0/8`, `172.16.0.0/12`).
+pub fn ip_matches_cidr(ip: IpAddr, cidr: &str) -> bool {
+    let cidr = cidr.trim();
+    if cidr == "*" {
+        return true;
+    }
+    if let Ok(exact) = cidr.parse::<IpAddr>() {
+        return ip == exact;
+    }
+    if let Some((cidr_ip, prefix_len)) = cidr.split_once('/') {
+        if let (Ok(net_ip), Ok(prefix)) = (cidr_ip.parse::<IpAddr>(), prefix_len.parse::<u8>()) {
+            match (ip, net_ip) {
+                (IpAddr::V4(client), IpAddr::V4(net)) if prefix <= 32 => {
+                    let mask = if prefix == 0 {
+                        0
+                    } else {
+                        !0u32 << (32 - prefix)
+                    };
+                    if (u32::from(client) & mask) == (u32::from(net) & mask) {
+                        return true;
+                    }
+                }
+                (IpAddr::V6(client), IpAddr::V6(net)) if prefix <= 128 => {
+                    let mask = if prefix == 0 {
+                        0
+                    } else {
+                        !0u128 << (128 - prefix)
+                    };
+                    if (u128::from(client) & mask) == (u128::from(net) & mask) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
 /// Windows `netsh advfirewall` backend for development and Windows servers.
 #[derive(Debug, Default)]
-pub struct WindowsNetshBackend;
+pub struct WindowsNetshBackend {
+    created_rules: Arc<std::sync::Mutex<HashSet<IpAddr>>>,
+}
 
 impl WindowsNetshBackend {
     pub fn new() -> Self {
-        Self
+        Self {
+            created_rules: Arc::new(std::sync::Mutex::new(HashSet::new())),
+        }
     }
 }
 
@@ -443,6 +486,9 @@ impl FirewallBackend for WindowsNetshBackend {
 
         if out.status.success() {
             info!(ip = %ip, "Windows firewall rule created: {}", rule_name);
+            if let Ok(mut set) = self.created_rules.lock() {
+                set.insert(ip);
+            }
             Ok(())
         } else {
             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
@@ -466,6 +512,9 @@ impl FirewallBackend for WindowsNetshBackend {
             .output()?;
 
         if out.status.success() {
+            if let Ok(mut set) = self.created_rules.lock() {
+                set.remove(&ip);
+            }
             Ok(())
         } else {
             let stderr = String::from_utf8_lossy(&out.stderr).to_string();
@@ -477,17 +526,16 @@ impl FirewallBackend for WindowsNetshBackend {
     }
 
     fn flush(&self) -> Result<(), FirewallError> {
-        // Delete all Zenith block rules
-        let _ = Command::new("netsh")
-            .args([
-                "advfirewall",
-                "firewall",
-                "delete",
-                "rule",
-                "name=all",
-                "profile=any",
-            ])
-            .output();
+        // Delete only rules specifically created by Zenith, never system-wide rules
+        let ips: Vec<IpAddr> = if let Ok(set) = self.created_rules.lock() {
+            set.iter().copied().collect()
+        } else {
+            Vec::new()
+        };
+
+        for ip in ips {
+            let _ = self.unban_ip(ip);
+        }
         Ok(())
     }
 
@@ -509,6 +557,7 @@ struct FirewallTask {
 pub struct FirewallManager {
     backend: Arc<dyn FirewallBackend>,
     whitelist: Arc<std::sync::RwLock<HashSet<IpAddr>>>,
+    whitelist_cidrs: Arc<std::sync::RwLock<Vec<String>>>,
     dedup_cache: Arc<Mutex<HashMap<IpAddr, Instant>>>,
     task_tx: mpsc::UnboundedSender<FirewallTask>,
     enabled: bool,
@@ -527,17 +576,26 @@ impl FirewallManager {
         initial_whitelist.insert(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)));
 
         let whitelist = Arc::new(std::sync::RwLock::new(initial_whitelist));
+        let whitelist_cidrs = Arc::new(std::sync::RwLock::new(Vec::<String>::new()));
         let dedup_cache = Arc::new(Mutex::new(HashMap::new()));
         let (task_tx, mut task_rx) = mpsc::unbounded_channel::<FirewallTask>();
 
         let worker_backend = Arc::clone(&backend);
         let worker_whitelist = Arc::clone(&whitelist);
+        let worker_cidrs = Arc::clone(&whitelist_cidrs);
 
         // Background worker ensuring zero game thread blocking
         tokio::spawn(async move {
             while let Some(task) = task_rx.recv().await {
-                // Double check whitelist
-                if worker_whitelist.read().unwrap().contains(&task.ip) {
+                // Double check whitelist (exact IP and CIDR subnets)
+                let is_immune = worker_whitelist.read().unwrap().contains(&task.ip)
+                    || worker_cidrs
+                        .read()
+                        .unwrap()
+                        .iter()
+                        .any(|c| ip_matches_cidr(task.ip, c));
+
+                if is_immune {
                     debug!(ip = %task.ip, "Firewall worker ignored whitelisted IP");
                     continue;
                 }
@@ -575,6 +633,7 @@ impl FirewallManager {
         Self {
             backend,
             whitelist,
+            whitelist_cidrs,
             dedup_cache,
             task_tx,
             enabled,
@@ -582,15 +641,30 @@ impl FirewallManager {
         }
     }
 
-    /// Adds an IP or subnet to the protected whitelist that can never be banned at the OS layer.
+    /// Adds an IP to the protected whitelist that can never be banned at the OS layer.
     pub fn add_whitelist(&self, ip: IpAddr) {
         self.whitelist.write().unwrap().insert(ip);
+    }
+
+    /// Adds a CIDR subnet block (e.g. `10.0.0.0/8`, `172.16.0.0/12`) to the protected whitelist.
+    pub fn add_whitelist_cidr(&self, cidr: &str) {
+        self.whitelist_cidrs.write().unwrap().push(cidr.to_string());
     }
 
     /// Checks whether an IP is immune from firewall jailing.
     #[must_use]
     pub fn is_whitelisted(&self, ip: &IpAddr) -> bool {
         if self.whitelist.read().unwrap().contains(ip) {
+            return true;
+        }
+
+        if self
+            .whitelist_cidrs
+            .read()
+            .unwrap()
+            .iter()
+            .any(|c| ip_matches_cidr(*ip, c))
+        {
             return true;
         }
 
@@ -738,5 +812,22 @@ mod tests {
             brand: "mctool".into(),
         };
         assert!(format!("{}", brand_reason).contains("mctool"));
+    }
+
+    #[tokio::test]
+    async fn test_firewall_cidr_whitelist() {
+        let noop = Arc::new(NoopFirewall::new());
+        let manager = FirewallManager::new(noop, true, Duration::from_secs(60));
+
+        manager.add_whitelist_cidr("10.0.0.0/8");
+        manager.add_whitelist_cidr("172.16.0.0/12");
+        manager.add_whitelist_cidr("192.168.1.0/24");
+
+        assert!(manager.is_whitelisted(&"10.50.2.1".parse().unwrap()));
+        assert!(manager.is_whitelisted(&"172.20.10.5".parse().unwrap()));
+        assert!(manager.is_whitelisted(&"192.168.1.100".parse().unwrap()));
+
+        assert!(!manager.is_whitelisted(&"192.168.2.100".parse().unwrap()));
+        assert!(!manager.is_whitelisted(&"8.8.8.8".parse().unwrap()));
     }
 }

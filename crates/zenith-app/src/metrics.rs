@@ -165,7 +165,12 @@ pub async fn start_metrics_server(
                     let metrics = Arc::clone(&metrics);
                     tokio::spawn(async move {
                         let mut buf = [0u8; 1024];
-                        if let Ok(n) = socket.read(&mut buf).await {
+                        if let Ok(Ok(n)) = tokio::time::timeout(
+                            tokio::time::Duration::from_secs(5),
+                            socket.read(&mut buf),
+                        )
+                        .await
+                        {
                             let request = String::from_utf8_lossy(&buf[..n]);
                             if request.starts_with("GET /metrics") {
                                 let body = metrics.render_prometheus();

@@ -52,8 +52,10 @@ jobs:
           mkdir -p dist-out
           if [ "${{ runner.os }}" = "Windows" ]; then
             7z a -tzip "dist-out/$name.zip" "./dist-release/$name/*" > /dev/null
+            (cd dist-out && sha256sum "$name.zip" > "$name.zip.sha256")
           else
             tar -czf "dist-out/$name.tar.gz" -C dist-release "$name"
+            (cd dist-out && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
           fi
           rm -rf dist-release
       - uses: actions/upload-artifact@v4

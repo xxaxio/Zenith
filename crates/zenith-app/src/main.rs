@@ -20,7 +20,7 @@ use zenith_display::{
     DisplayConfig, HudRenderer, encode_subtitle_packet, encode_system_chat_packet,
     encode_title_packet, encode_title_times_packet,
 };
-use zenith_session::{SessionCommand, SessionEvent, SessionId, VirtualSession};
+use zenith_session::{OnlineModeConfig, SessionCommand, SessionEvent, SessionId, VirtualSession};
 use zenith_shield::{
     ConnectionTracker, FingerprintConfig, FirewallBackend, FirewallManager, IpRateLimiter,
     IpsetBackend, NftablesBackend, NoopFirewall, RateLimitConfig, ShieldLimits,
@@ -32,7 +32,7 @@ use zenith_totem::{
 use zenith_transit::{
     GroupManager, QueueEntry, SortingPolicy, TargetServerHealth, TransitConfig, TransitQueue,
 };
-use zenith_wire::{HmacForwarding, PROXY_V2_MAGIC, ProxyHeader, is_trusted_proxy};
+use zenith_wire::{HmacForwarding, PROXY_V2_MAGIC, ProxyHeader, RsaKeypair, is_trusted_proxy};
 
 /// Zenith operational modes for testing and production deployment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,6 +73,7 @@ struct CommandContext {
     hmac_forwarding: Option<HmacForwarding>,
     firewall: Arc<FirewallManager>,
     metrics: Arc<ZenithMetrics>,
+    is_online: bool,
 }
 
 #[tokio::main]
@@ -133,6 +134,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "--bind" | "-b" if i + 1 < args.len() => {
                 cli_bind = Some(args[i + 1].clone());
                 i += 2;
+            }
+            arg if !arg.starts_with('-') && cli_config.is_none() => {
+                cli_config = Some(arg.to_string());
+                i += 1;
             }
             _ => {
                 i += 1;
@@ -263,7 +268,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Protect trusted proxies and loopback from OS firewall rules
     for proxy in &config.proxy.trusted_proxies {
-        if let Ok(ip) = proxy.parse::<IpAddr>() {
+        if proxy.contains('/') {
+            firewall_manager.add_whitelist_cidr(proxy);
+        } else if let Ok(ip) = proxy.parse::<IpAddr>() {
             firewall_manager.add_whitelist(ip);
         }
     }
@@ -352,6 +359,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if hmac_forwarding.is_some() {
         info!("HMAC-SHA256 forwarding security token generation enabled");
     }
+
+    let is_online = config.server.online_mode;
+    let rsa_keypair = if is_online {
+        info!(
+            "Online-mode enabled: generating RSA-1024 cryptographic keypair for Mojang authentication"
+        );
+        Some(Arc::new(
+            RsaKeypair::generate().expect("Failed to generate RSA keypair for online-mode"),
+        ))
+    } else {
+        tracing::warn!(
+            "Running in offline-mode: Mojang session authentication is disabled. Administrative group modifications require an upstream HMAC secret."
+        );
+        None
+    };
 
     // Totem Lifeline: Active SLP Health Probing & Anti-Crash Evacuation
     let totem_config = TotemConfig {
@@ -666,6 +688,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         hmac_forwarding,
         firewall: Arc::clone(&firewall_manager),
         metrics: Arc::clone(&metrics),
+        is_online,
     });
 
     let loop_ctx = Arc::clone(&cmd_context);
@@ -722,8 +745,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         blocked_brands: config.shield.fingerprint.blocked_brands.clone(),
     };
 
+    #[cfg(unix)]
+    let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).ok();
+    #[cfg(unix)]
+    let mut sigterm =
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).ok();
+
     loop {
-        let (mut socket, peer_addr) = listener.accept().await?;
+        let (mut socket, peer_addr) = tokio::select! {
+            accept_res = listener.accept() => {
+                match accept_res {
+                    Ok(conn) => conn,
+                    Err(e) => {
+                        error!(error = %e, "Listener accept failed");
+                        continue;
+                    }
+                }
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("Received SIGINT (Ctrl+C). Initiating graceful shutdown...");
+                break;
+            }
+            _ = async {
+                #[cfg(unix)]
+                if let Some(ref mut hup) = sighup {
+                    hup.recv().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+                #[cfg(not(unix))]
+                std::future::pending::<()>().await;
+            } => {
+                info!("Received SIGHUP. Hot-reloading priority groups from disk...");
+                let mut gm = group_manager.lock().await;
+                if let Err(e) = gm.reload() {
+                    tracing::warn!(error = %e, "Failed to reload groups on SIGHUP");
+                } else {
+                    info!("Successfully reloaded priority groups on SIGHUP");
+                }
+                continue;
+            }
+            _ = async {
+                #[cfg(unix)]
+                if let Some(ref mut term) = sigterm {
+                    term.recv().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+                #[cfg(not(unix))]
+                std::future::pending::<()>().await;
+            } => {
+                info!("Received SIGTERM. Initiating graceful shutdown...");
+                break;
+            }
+        };
         debug!(peer = %peer_addr, "Accepted incoming TCP connection");
 
         // PROXY Protocol v2 Ingress: parse header if enabled and peer is a trusted proxy
@@ -819,6 +894,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let task_metrics = Arc::clone(&loop_metrics);
         let task_fp_config = fp_config.clone();
         let task_fw = Arc::clone(&firewall_manager);
+        let task_rsa = rsa_keypair.clone();
 
         tokio::spawn(async move {
             let _guard = _conn_guard;
@@ -832,6 +908,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             session.set_event_sender(event_tx_clone);
             session.set_fingerprint_config(task_fp_config);
             session.set_online_counter(Arc::clone(&task_metrics.active_sessions));
+            session.set_online_mode(match &task_rsa {
+                Some(kp) => OnlineModeConfig::Online {
+                    keypair: Arc::clone(kp),
+                    auth_endpoint: None,
+                    prevent_proxy_connections: false,
+                },
+                None => OnlineModeConfig::Offline,
+            });
 
             match session.complete_handshake_and_login().await {
                 Ok(None) => {
@@ -1085,6 +1169,15 @@ async fn handle_command(
             if !is_staff {
                 let msg = encode_system_chat_packet(
                     "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to use this command.",
+                    false,
+                );
+                let _ = tx.send(SessionCommand::SendRaw(msg));
+                return;
+            }
+
+            if !ctx.is_online && ctx.hmac_forwarding.is_none() {
+                let msg = encode_system_chat_packet(
+                    "§b§lᴢᴇɴɪᴛʜ §8» §cAdmin group modifications disabled in offline-mode without HMAC forwarding secret.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));

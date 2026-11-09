@@ -18,6 +18,13 @@ target = "127.0.0.1:25566"
 # - "stress": High-throughput holding dimension for bot testing and load evaluation.
 mode = "limbo"
 
+# Online mode authentication:
+# - true: Cryptographic Mojang session validation (RSA-1024, AES-128 CFB8 stream cipher).
+#         Guarantees player authenticity, preventing admin username impersonation.
+# - false: Offline mode (skips Mojang authentication). Requires upstream proxy HMAC forwarding
+#          secret to execute administrative commands.
+online_mode = true
+
 [queue]
 # Number of players to transfer in each batch wave.
 wave_size = 5

@@ -112,14 +112,50 @@ else
 
     RELEASE_JSON="$(curl -sSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null || true)"
     DOWNLOAD_URL=""
+    CHECKSUMS_URL=""
 
     if [ -n "${RELEASE_JSON}" ]; then
         DOWNLOAD_URL="$(echo "${RELEASE_JSON}" | grep -o "https://[^\"]*linux-x86_64[^\"]*\.tar\.gz" | head -n 1 || true)"
+        CHECKSUMS_URL="$(echo "${RELEASE_JSON}" | grep -o "https://[^\"]*SHA256SUMS" | head -n 1 || true)"
     fi
 
     if [ -n "${DOWNLOAD_URL}" ]; then
         log_info "Downloading ${DOWNLOAD_URL}..."
         curl -sSL "${DOWNLOAD_URL}" -o "${TEMP_DIR}/zenith.tar.gz"
+
+        # Verify SHA-256 integrity if manifest is published (ZENITH-SUPPLY-008)
+        ARCHIVE_NAME="$(basename "${DOWNLOAD_URL}")"
+        if [ -n "${CHECKSUMS_URL}" ]; then
+            log_info "Verifying SHA-256 checksum against official release manifest..."
+            if curl -sSL "${CHECKSUMS_URL}" -o "${TEMP_DIR}/SHA256SUMS"; then
+                EXPECTED_SHA="$(grep "${ARCHIVE_NAME}" "${TEMP_DIR}/SHA256SUMS" | awk '{print $1}' || true)"
+                if [ -n "${EXPECTED_SHA}" ]; then
+                    if command -v sha256sum >/dev/null 2>&1; then
+                        ACTUAL_SHA="$(sha256sum "${TEMP_DIR}/zenith.tar.gz" | awk '{print $1}')"
+                    elif command -v shasum >/dev/null 2>&1; then
+                        ACTUAL_SHA="$(shasum -a 256 "${TEMP_DIR}/zenith.tar.gz" | awk '{print $1}')"
+                    else
+                        log_warn "Neither sha256sum nor shasum is available; unable to compute checksum."
+                        ACTUAL_SHA=""
+                    fi
+
+                    if [ -n "${ACTUAL_SHA}" ]; then
+                        if [ "${EXPECTED_SHA}" != "${ACTUAL_SHA}" ]; then
+                            log_err "SECURITY ALERT: SHA-256 verification FAILED!"
+                            log_err "Expected: ${EXPECTED_SHA}"
+                            log_err "Actual:   ${ACTUAL_SHA}"
+                            exit 1
+                        fi
+                        log_success "SHA-256 integrity verified: ${ACTUAL_SHA}"
+                    fi
+                else
+                    log_warn "Release archive '${ARCHIVE_NAME}' not listed in SHA256SUMS; proceeding with caution."
+                fi
+            else
+                log_warn "Could not retrieve SHA256SUMS; proceeding without checksum verification."
+            fi
+        fi
+
         tar -xzf "${TEMP_DIR}/zenith.tar.gz" -C "${TEMP_DIR}"
         FOUND_BIN="$(find "${TEMP_DIR}" -type f -name "zenith" | head -n 1)"
         if [ -n "${FOUND_BIN}" ]; then
@@ -243,7 +279,7 @@ members = []
 EOF
     fi
     chown root:zenith "${GROUPS_FILE}"
-    chmod 640 "${GROUPS_FILE}"
+    chmod 660 "${GROUPS_FILE}"
     log_success "Configured groups file at ${GROUPS_FILE}"
 else
     log_info "Existing groups configuration preserved at ${GROUPS_FILE}"
@@ -267,7 +303,7 @@ Wants=network-online.target
 Type=simple
 User=zenith
 Group=zenith
-ExecStart=/usr/local/bin/zenith /etc/zenith/zenith.toml
+ExecStart=/usr/local/bin/zenith --config /etc/zenith/zenith.toml
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=3s
@@ -279,8 +315,8 @@ LimitNOFILE=1048576
 
 UMask=0077
 NoNewPrivileges=yes
-CapabilityBoundingSet=
-AmbientCapabilities=
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
@@ -302,6 +338,7 @@ SystemCallArchitectures=native
 SystemCallFilter=@system-service
 
 ReadOnlyPaths=/etc/zenith
+ReadWritePaths=/etc/zenith/groups.toml
 
 [Install]
 WantedBy=multi-user.target

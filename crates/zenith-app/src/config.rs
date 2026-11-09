@@ -12,6 +12,8 @@ pub struct ServerConfig {
     pub target: String,
     #[serde(default = "default_mode")]
     pub mode: String,
+    #[serde(default = "default_online_mode")]
+    pub online_mode: bool,
 }
 
 fn default_bind() -> String {
@@ -23,6 +25,9 @@ fn default_target() -> String {
 fn default_mode() -> String {
     "limbo".to_string()
 }
+fn default_online_mode() -> bool {
+    true
+}
 
 impl Default for ServerConfig {
     fn default() -> Self {
@@ -30,6 +35,7 @@ impl Default for ServerConfig {
             bind: default_bind(),
             target: default_target(),
             mode: default_mode(),
+            online_mode: default_online_mode(),
         }
     }
 }
@@ -283,7 +289,7 @@ pub struct MetricsConfig {
 }
 
 fn default_metrics_bind() -> String {
-    "0.0.0.0:25580".to_string()
+    "127.0.0.1:25580".to_string()
 }
 
 impl Default for MetricsConfig {
@@ -425,6 +431,9 @@ impl ZenithConfig {
         {
             config.queue.arrival_window_ms = aw;
         }
+        if let Ok(om) = env::var("ZENITH_ONLINE_MODE") {
+            config.server.online_mode = om == "1" || om.eq_ignore_ascii_case("true");
+        }
         if let Ok(sec) = env::var("ZENITH_HMAC_SECRET") {
             config.forwarding.hmac_secret = Some(sec);
         }
@@ -454,13 +463,14 @@ mod tests {
         let config = ZenithConfig::default();
         assert_eq!(config.server.bind, "0.0.0.0:25565");
         assert_eq!(config.server.target, "127.0.0.1:25566");
+        assert!(config.server.online_mode);
         assert_eq!(config.queue.sorting, "fifo");
         assert_eq!(config.queue.arrival_window_ms, 0);
         assert_eq!(config.shield.max_connections_per_ip, 3);
         assert_eq!(config.shield.jail_duration_secs, 900);
         assert!(!config.shield.firewall.enabled);
         assert_eq!(config.shield.firewall.backend, "auto");
-        assert_eq!(config.metrics.bind, "0.0.0.0:25580");
+        assert_eq!(config.metrics.bind, "127.0.0.1:25580");
         assert!(!config.proxy.enabled);
         assert!(config.broadcast.notify_on_backend_down);
 
