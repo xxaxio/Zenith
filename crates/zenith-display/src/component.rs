@@ -1,6 +1,7 @@
 //! Minecraft Protocol 777 JSON Text Component serialization.
 
 use crate::config::DisplayConfig;
+use crate::gradient::{RgbColor, gradient_components};
 use crate::typography::{format_eta, to_small_caps};
 use serde::{Deserialize, Serialize};
 
@@ -56,22 +57,36 @@ impl ChatComponent {
     }
 
     /// Serializes the component into Minecraft section-sign (§) formatted legacy text for network NBT.
+    ///
+    /// Supports both standard 16 colors and 24-bit True RGB hex codes (§x§r§r§g§g§b§b).
     #[must_use]
     pub fn to_legacy_string(&self) -> String {
         let mut out = String::new();
         fn append_comp(c: &ChatComponent, out: &mut String) {
             if let Some(col) = &c.color {
-                match col.as_str() {
-                    "#00c6ff" | "cyan" | "aqua" => out.push_str("§b"),
-                    "#f9d423" | "yellow" | "gold" => out.push_str("§e"),
-                    "#00ff87" | "green" => out.push_str("§a"),
-                    "#aaaaaa" | "gray" => out.push_str("§7"),
-                    "#555555" | "#777777" | "dark_gray" => out.push_str("§8"),
-                    _ => out.push_str("§f"),
+                if let Some(rgb) = RgbColor::from_hex(col) {
+                    out.push_str(&rgb.to_legacy_code());
+                } else {
+                    match col.as_str() {
+                        "red" => out.push_str("§c"),
+                        "gold" => out.push_str("§6"),
+                        "yellow" => out.push_str("§e"),
+                        "green" => out.push_str("§a"),
+                        "aqua" | "cyan" => out.push_str("§b"),
+                        "blue" => out.push_str("§9"),
+                        "purple" => out.push_str("§5"),
+                        "gray" => out.push_str("§7"),
+                        "dark_gray" => out.push_str("§8"),
+                        "white" => out.push_str("§f"),
+                        _ => out.push_str("§f"),
+                    }
                 }
             }
             if c.bold == Some(true) {
                 out.push_str("§l");
+            }
+            if c.italic == Some(true) {
+                out.push_str("§o");
             }
             out.push_str(&c.text);
             for sub in &c.extra {
@@ -110,39 +125,45 @@ pub fn build_bossbar_title(
 
     let mut root = ChatComponent::plain("");
 
-    // Section 1: Header / Title (Electric Blue #00c6ff)
-    root.add_extra(ChatComponent::styled(title, "#00c6ff", true));
+    // Section 1: Header / Title in vibrant Solar Amber RGB gradient
+    for comp in gradient_components(&title, &config.gradient_start, &config.gradient_end, true) {
+        root.add_extra(comp);
+    }
 
-    // Separator
-    root.add_extra(ChatComponent::styled(" §8| ", "#555555", false));
+    // Separator (fine gray)
+    root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
 
-    // Section 2: Position (Label in Gray, numbers in Warm Gold #f9d423)
+    // Section 2: Position (Label in cool gray, numbers in amber highlight)
     root.add_extra(ChatComponent::styled(
-        format!("{pos_label} "),
+        format!("{pos_label}: "),
         "#aaaaaa",
         false,
     ));
     root.add_extra(ChatComponent::styled(
         format!("#{position}"),
-        "#f9d423",
+        &config.gradient_end,
         true,
     ));
-    root.add_extra(ChatComponent::styled("§8/§e", "#777777", false));
-    root.add_extra(ChatComponent::styled(format!("{total}"), "#f9d423", false));
+    root.add_extra(ChatComponent::styled(" §8/ §6", "#777777", false));
+    root.add_extra(ChatComponent::styled(
+        format!("{total}"),
+        &config.accent_color,
+        false,
+    ));
 
-    // Separator
-    root.add_extra(ChatComponent::styled(" §8| ", "#555555", false));
+    // Separator (fine gray)
+    root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
 
-    // Section 3: ETA (Label in Gray, time in Spring Neon Green #00ff87)
+    // Section 3: ETA (Label in cool gray, time in warm gold)
     let time_str = format_eta(eta_seconds);
     root.add_extra(ChatComponent::styled(
-        format!("{eta_label} "),
+        format!("{eta_label}: "),
         "#aaaaaa",
         false,
     ));
     root.add_extra(ChatComponent::styled(
         format!("~{time_str}"),
-        "#00ff87",
+        &config.accent_color,
         true,
     ));
 
@@ -150,7 +171,7 @@ pub fn build_bossbar_title(
 }
 
 /// Builds the sleek, minimal BossBar title for Limbo / Holding mode:
-/// `§b§lᴢᴇɴɪᴛʜ §8| §7ᴏɴʟɪɴᴇ: §e§l#1`
+/// `<gradient>ᴢᴇɴɪᴛʜ</gradient> §8│ §7Online: §x...#1`
 #[must_use]
 pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) -> ChatComponent {
     let zenith_text = if config.small_caps {
@@ -165,8 +186,16 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
     };
 
     let mut root = ChatComponent::plain("");
-    root.add_extra(ChatComponent::styled(zenith_text, "#00c6ff", true));
-    root.add_extra(ChatComponent::styled(" §8| ", "#555555", false));
+    for comp in gradient_components(
+        &zenith_text,
+        &config.gradient_start,
+        &config.gradient_end,
+        true,
+    ) {
+        root.add_extra(comp);
+    }
+
+    root.add_extra(ChatComponent::styled(" §8│ ", "#555555", false));
     root.add_extra(ChatComponent::styled(
         format!("{online_label}: "),
         "#aaaaaa",
@@ -174,7 +203,7 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
     ));
     root.add_extra(ChatComponent::styled(
         format!("#{online_count}"),
-        "#f9d423",
+        &config.accent_color,
         true,
     ));
 
@@ -183,17 +212,33 @@ pub fn build_limbo_bossbar_title(config: &DisplayConfig, online_count: usize) ->
 
 /// Builds the Actionbar text for Limbo / Holding mode.
 #[must_use]
-pub fn build_limbo_actionbar_component(_config: &DisplayConfig) -> ChatComponent {
+pub fn build_limbo_actionbar_component(config: &DisplayConfig) -> ChatComponent {
+    let holding_label = if config.small_caps {
+        to_small_caps("Holding")
+    } else {
+        "Holding".to_string()
+    };
+
     let mut root = ChatComponent::plain("");
+    for comp in gradient_components(
+        &holding_label,
+        &config.gradient_start,
+        &config.gradient_end,
+        true,
+    ) {
+        root.add_extra(comp);
+    }
+    root.add_extra(ChatComponent::styled(" §8│ §7Type ", "#555555", false));
     root.add_extra(ChatComponent::styled(
-        "§b§l● §7Waiting in queue...",
-        "#00c6ff",
-        false,
+        "/transfer",
+        &config.accent_color,
+        true,
     ));
+    root.add_extra(ChatComponent::styled(" §7to connect", "#aaaaaa", false));
     root
 }
 
-/// Builds an actionbar status component (`Position: #X / Y · ETA: ~mm:ss`).
+/// Builds an actionbar status component (`Position: #X / Y │ Wait: ~mm:ss`).
 #[must_use]
 pub fn build_actionbar_component(
     config: &DisplayConfig,
@@ -214,31 +259,31 @@ pub fn build_actionbar_component(
 
     let mut root = ChatComponent::plain("");
     root.add_extra(ChatComponent::styled(
-        format!("{pos_label} "),
+        format!("{pos_label}: "),
         "#aaaaaa",
         false,
     ));
     root.add_extra(ChatComponent::styled(
         format!("#{position}"),
-        "#f9d423",
+        &config.gradient_end,
         true,
     ));
     root.add_extra(ChatComponent::styled(
-        format!(" / {total}"),
+        format!(" §8/ §6{total} §8│ "),
         "#777777",
         false,
     ));
-    root.add_extra(ChatComponent::styled(" · ", "#555555", false));
     root.add_extra(ChatComponent::styled(
-        format!("{eta_label} ~"),
+        format!("{eta_label}: "),
         "#aaaaaa",
         false,
     ));
     root.add_extra(ChatComponent::styled(
-        format_eta(eta_seconds),
-        "#00ff87",
+        format!("~{}", format_eta(eta_seconds)),
+        &config.accent_color,
         true,
     ));
+
     root
 }
 
@@ -248,31 +293,35 @@ mod tests {
 
     #[test]
     fn test_component_json_serialization() {
-        let mut comp = ChatComponent::plain("");
-        comp.add_extra(ChatComponent::styled("QUEUE", "#00c6ff", true));
+        let comp = ChatComponent::styled("TEST", "#ff3700", true);
         let json = comp.to_json();
-        assert!(json.contains("#00c6ff"));
-        assert!(json.contains("QUEUE"));
+        assert!(json.contains("\"text\":\"TEST\""));
+        assert!(json.contains("\"color\":\"#ff3700\""));
+        assert!(json.contains("\"bold\":true"));
     }
 
     #[test]
-    fn test_bossbar_title_generation() {
-        let config = DisplayConfig::default();
-        let comp = build_bossbar_title(&config, "QUEUE", 5, 25, 45);
-        let json = comp.to_json();
-        assert!(json.contains("ǫᴜᴇᴜᴇ"));
-        assert!(json.contains("#f9d423"));
-        assert!(json.contains("00:45"));
-    }
-
-    #[test]
-    fn test_limbo_bossbar_clean_minimal() {
-        let config = DisplayConfig::default();
-        let comp = build_limbo_bossbar_title(&config, 3);
+    fn test_component_to_legacy_string_hex() {
+        let comp = ChatComponent::styled("TEST", "#ffaa00", true);
         let legacy = comp.to_legacy_string();
-        assert!(legacy.contains("ᴢᴇɴɪᴛʜ"));
-        assert!(legacy.contains("#3"));
-        assert!(!legacy.contains("VIRTUAL LIMBO"));
-        assert!(!legacy.contains("/help"));
+        assert_eq!(legacy, "§x§f§f§a§a§0§0§lTEST");
+    }
+
+    #[test]
+    fn test_bossbar_title_building() {
+        let config = DisplayConfig::default();
+        let title = build_bossbar_title(&config, "QUEUE", 1, 10, 30);
+        let legacy = title.to_legacy_string();
+        assert!(legacy.contains("§x"));
+        assert!(legacy.contains("#1"));
+    }
+
+    #[test]
+    fn test_limbo_bossbar_title() {
+        let config = DisplayConfig::default();
+        let title = build_limbo_bossbar_title(&config, 5);
+        let legacy = title.to_legacy_string();
+        assert!(legacy.contains("§x"));
+        assert!(legacy.contains("#5"));
     }
 }

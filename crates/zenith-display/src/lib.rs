@@ -4,6 +4,7 @@ pub mod actionbar;
 pub mod bossbar;
 pub mod component;
 pub mod config;
+pub mod gradient;
 pub mod sound;
 pub mod title;
 pub mod transfer;
@@ -19,6 +20,10 @@ pub use component::{
     build_limbo_bossbar_title,
 };
 pub use config::{BossBarColor, BossBarDivision, DisplayConfig};
+pub use gradient::{
+    BRAND_LOGO_LEGACY, BRAND_PREFIX, BRAND_TITLE_LEGACY, RgbColor, gradient_components,
+    gradient_legacy_string, multi_gradient_legacy_string,
+};
 pub use sound::{SoundCategory, encode_click_sound, encode_sound_packet, encode_transfer_sound};
 pub use title::{
     encode_clear_titles_packet, encode_subtitle_packet, encode_title_packet,
@@ -108,8 +113,8 @@ impl HudRenderer {
             uuid,
             &title_comp.to_legacy_string(),
             1.0,
-            BossBarColor::Blue,
-            BossBarDivision::None,
+            self.config.active_color,
+            self.config.division,
         )
     }
 

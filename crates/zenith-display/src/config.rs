@@ -29,8 +29,17 @@ pub enum BossBarDivision {
 /// Complete configuration for HUD rendering, typography, and audio cues.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayConfig {
-    /// Enable small-caps formatting for labels (e.g. "QUEUE" -> "Qᴜᴇᴜᴇ")
+    /// Enable small-caps formatting for labels (e.g. "QUEUE" -> "Qá´œá´‡á´œá´‡")
     pub small_caps: bool,
+
+    /// Primary brand gradient start hex (default flame: #FF3700)
+    pub gradient_start: String,
+
+    /// Primary brand gradient end hex (default warm amber: #FFAA00)
+    pub gradient_end: String,
+
+    /// Accent highlight color (default sun gold: #FFD000)
+    pub accent_color: String,
 
     /// Queue header title (shown when queue is active)
     pub queue_title: String,
@@ -53,7 +62,7 @@ pub struct DisplayConfig {
     /// Label prefix for estimated wait time
     pub eta_label: String,
 
-    /// Color when queue is flowing normally
+    /// Color when queue is flowing normally (Solar Amber / Yellow)
     pub active_color: BossBarColor,
 
     /// Color when queue is paused or throttled
@@ -62,7 +71,7 @@ pub struct DisplayConfig {
     /// Color when backend is starting or offline
     pub offline_color: BossBarColor,
 
-    /// BossBar division overlay
+    /// BossBar division overlay (default Notches10 for modern segmented look)
     pub division: BossBarDivision,
 
     /// Enable sound effects
@@ -89,6 +98,9 @@ impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
             small_caps: true,
+            gradient_start: "#FF3700".into(),
+            gradient_end: "#FFAA00".into(),
+            accent_color: "#FFD000".into(),
             queue_title: "QUEUE".into(),
             paused_title: "QUEUE PAUSED".into(),
             starting_title: "SERVER STARTING".into(),
@@ -96,10 +108,10 @@ impl Default for DisplayConfig {
             transfer_title: "CONNECTING TO TARGET SERVER...".into(),
             position_label: "POSITION".into(),
             eta_label: "EST. WAIT".into(),
-            active_color: BossBarColor::Blue,
-            paused_color: BossBarColor::Purple,
+            active_color: BossBarColor::Yellow,
+            paused_color: BossBarColor::Red,
             offline_color: BossBarColor::Red,
-            division: BossBarDivision::None,
+            division: BossBarDivision::Notches10,
             enable_sounds: true,
             click_sound_id: "minecraft:ui.button.click".into(),
             click_sound_pitch: 1.5,

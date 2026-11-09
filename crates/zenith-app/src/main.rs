@@ -431,7 +431,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         );
                         let title = encode_title_packet("§c⚠");
                         let chat = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c§lALERT: §7Target backend crashed or restarting. You are safe in virtual holding!",
                             false,
                         );
 
@@ -472,7 +472,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let title = encode_title_packet("§a▶");
                         let chat = encode_system_chat_packet(
                             &format!(
-                                "§b§lᴢᴇɴɪᴛʜ §8» §a§lBACKEND ONLINE! §7Ping: §e{}ms§7. Preparing transfers...",
+                                "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §a§lBACKEND ONLINE! §7Ping: §e{}ms§7. Preparing transfers...",
                                 latency_ms
                             ),
                             false,
@@ -640,7 +640,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let _ = tx.send(SessionCommand::SendRaw(snd));
                             }
                             let chat_msg = encode_system_chat_packet(
-                                "§b§lᴢᴇɴɪᴛʜ §8» §aYour turn has arrived! Transfer in progress...",
+                                "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aYour turn has arrived! Transfer in progress...",
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(chat_msg));
@@ -974,7 +974,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "§7Transit Queue"
                     });
                     let _ = cmd_tx.send(SessionCommand::SendRaw(sub));
-                    let title = encode_title_packet("§b§lᴢᴇɴɪᴛʜ");
+                    let title = encode_title_packet(zenith_display::BRAND_TITLE_LEGACY);
                     let _ = cmd_tx.send(SessionCommand::SendRaw(title));
 
                     // Register in active sessions map
@@ -1043,7 +1043,7 @@ async fn handle_command(
         "queue" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to use this command.",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cYou do not have permission to use this command.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1059,10 +1059,14 @@ async fn handle_command(
             if new_active {
                 info!(by = %username, "Queue OPENED by staff member");
                 let times = encode_title_times_packet(5, 50, 15);
-                let sub = encode_subtitle_packet("§b§lQUEUE RESUMED §7Transit waves are active");
+                let sub = encode_subtitle_packet(
+                    "§x§f§f§a§a§0§0§lQUEUE RESUMED §7Transit waves are active",
+                );
                 let title = encode_title_packet("§a▶");
-                let chat =
-                    encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §aQueue is now §2§lOPEN §a!", false);
+                let chat = encode_system_chat_packet(
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aQueue is now §2§lOPEN §a!",
+                    false,
+                );
 
                 for (s_tx, _, _, _, _) in sess.values() {
                     let _ = s_tx.send(SessionCommand::SendRaw(times.clone()));
@@ -1076,7 +1080,7 @@ async fn handle_command(
                 let sub = encode_subtitle_packet("§c§lQUEUE PAUSED §7Transit waves suspended");
                 let title = encode_title_packet("§c⏸");
                 let chat = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cQueue is now §4§lPAUSED §c!",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cQueue is now §4§lPAUSED §c!",
                     false,
                 );
 
@@ -1091,7 +1095,7 @@ async fn handle_command(
         "queueskip" | "skip" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to use this command.",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cYou do not have permission to use this command.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1099,8 +1103,10 @@ async fn handle_command(
             }
 
             if args.is_empty() {
-                let msg =
-                    encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /queueskip <player>", false);
+                let msg = encode_system_chat_packet(
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /queueskip <player>",
+                    false,
+                );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
                 return;
             }
@@ -1131,7 +1137,7 @@ async fn handle_command(
                     let _ = target_tx.send(SessionCommand::SendRaw(snd));
                 }
                 let target_msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §aForced transfer to backend server in progress!",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aForced transfer to backend server in progress!",
                     false,
                 );
                 let _ = target_tx.send(SessionCommand::SendRaw(target_msg));
@@ -1148,7 +1154,7 @@ async fn handle_command(
 
                 let reply = encode_system_chat_packet(
                     &format!(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §aForced transfer of §e{} §acompleted successfully.",
+                        "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aForced transfer of §e{} §acompleted successfully.",
                         target_actual_name
                     ),
                     false,
@@ -1157,7 +1163,7 @@ async fn handle_command(
             } else {
                 let msg = encode_system_chat_packet(
                     &format!(
-                        "§b§lᴢᴇɴɪᴛʜ §8» §cPlayer '{}' is not in the queue.",
+                        "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cPlayer '{}' is not in the queue.",
                         target_name
                     ),
                     false,
@@ -1168,7 +1174,7 @@ async fn handle_command(
         "group" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to use this command.",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cYou do not have permission to use this command.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1177,7 +1183,7 @@ async fn handle_command(
 
             if !ctx.is_online && ctx.hmac_forwarding.is_none() {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cAdmin group modifications disabled in offline-mode without HMAC forwarding secret.",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cAdmin group modifications disabled in offline-mode without HMAC forwarding secret.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1189,7 +1195,7 @@ async fn handle_command(
                 "create" => {
                     if args.len() < 3 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group create <name> <weight> [staff: true/false]",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /group create <name> <weight> [staff: true/false]",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1200,7 +1206,7 @@ async fn handle_command(
                         Ok(w) => w,
                         Err(_) => {
                             let msg = encode_system_chat_packet(
-                                "§b§lᴢᴇɴɪᴛʜ §8» §cWeight must be a positive integer (e.g. 100).",
+                                "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cWeight must be a positive integer (e.g. 100).",
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1218,7 +1224,7 @@ async fn handle_command(
                             info!(by = %username, group = %name, weight, is_staff = is_staff_group, "Created group");
                             let msg = encode_system_chat_packet(
                                 &format!(
-                                    "§b§lᴢᴇɴɪᴛʜ §8» §aGroup §e{} §acreated successfully (weight: §b{}§a, staff: §b{}§a).",
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aGroup §e{} §acreated successfully (weight: §6{}§a, staff: §6{}§a).",
                                     name,
                                     weight,
                                     if is_staff_group { "yes" } else { "no" }
@@ -1229,7 +1235,10 @@ async fn handle_command(
                         }
                         Err(e) => {
                             let msg = encode_system_chat_packet(
-                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                &format!(
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c{}",
+                                    e
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1239,7 +1248,7 @@ async fn handle_command(
                 "delete" => {
                     if args.len() < 2 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group delete <name>",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /group delete <name>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1251,14 +1260,20 @@ async fn handle_command(
                         Ok(()) => {
                             info!(by = %username, group = %name, "Deleted group");
                             let msg = encode_system_chat_packet(
-                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §aGroup §e{} §adeleted.", name),
+                                &format!(
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aGroup §e{} §adeleted.",
+                                    name
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
                         }
                         Err(e) => {
                             let msg = encode_system_chat_packet(
-                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                &format!(
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c{}",
+                                    e
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1268,7 +1283,7 @@ async fn handle_command(
                 "setweight" => {
                     if args.len() < 3 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group setweight <group> <weight>",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /group setweight <group> <weight>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1279,7 +1294,7 @@ async fn handle_command(
                         Ok(w) => w,
                         Err(_) => {
                             let msg = encode_system_chat_packet(
-                                "§b§lᴢᴇɴɪᴛʜ §8» §cWeight must be a positive integer.",
+                                "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cWeight must be a positive integer.",
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1293,7 +1308,7 @@ async fn handle_command(
                             info!(by = %username, group = %name, weight, "Updated group weight");
                             let msg = encode_system_chat_packet(
                                 &format!(
-                                    "§b§lᴢᴇɴɪᴛʜ §8» §aGroup §e{} §aweight updated: §b{}§a.",
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aGroup §e{} §aweight updated: §6{}§a.",
                                     name, weight
                                 ),
                                 false,
@@ -1302,7 +1317,10 @@ async fn handle_command(
                         }
                         Err(e) => {
                             let msg = encode_system_chat_packet(
-                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                &format!(
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c{}",
+                                    e
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1312,7 +1330,7 @@ async fn handle_command(
                 "setstaff" => {
                     if args.len() < 3 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group setstaff <group> <true|false>",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /group setstaff <group> <true|false>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1327,7 +1345,7 @@ async fn handle_command(
                             info!(by = %username, group = %name, is_staff = is_staff_flag, "Updated group staff permission");
                             let msg = encode_system_chat_packet(
                                 &format!(
-                                    "§b§lᴢᴇɴɪᴛʜ §8» §aGroup §e{} §astaff status: §b{}§a.",
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aGroup §e{} §astaff status: §6{}§a.",
                                     name,
                                     if is_staff_flag { "yes" } else { "no" }
                                 ),
@@ -1337,7 +1355,10 @@ async fn handle_command(
                         }
                         Err(e) => {
                             let msg = encode_system_chat_packet(
-                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                &format!(
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c{}",
+                                    e
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1347,7 +1368,7 @@ async fn handle_command(
                 "add" => {
                     if args.len() < 3 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group add <group> <player>",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /group add <group> <player>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1367,7 +1388,7 @@ async fn handle_command(
                             info!(by = %username, target = %player, group = %group, "Added player to group");
                             let msg = encode_system_chat_packet(
                                 &format!(
-                                    "§b§lᴢᴇɴɪᴛʜ §8» §aPlayer §e{} §aadded to group §b{}§a.",
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §aPlayer §e{} §aadded to group §6{}§a.",
                                     player, group
                                 ),
                                 false,
@@ -1376,7 +1397,10 @@ async fn handle_command(
                         }
                         Err(e) => {
                             let msg = encode_system_chat_packet(
-                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                &format!(
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c{}",
+                                    e
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1386,7 +1410,7 @@ async fn handle_command(
                 "remove" => {
                     if args.len() < 3 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group remove <group> <player>",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /group remove <group> <player>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1406,7 +1430,7 @@ async fn handle_command(
                             info!(by = %username, target = %player, group = %group, "Removed player from group");
                             let msg = encode_system_chat_packet(
                                 &format!(
-                                    "§b§lᴢᴇɴɪᴛʜ §8» §cPlayer §e{} §cremoved from group §b{}§c.",
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cPlayer §e{} §cremoved from group §6{}§c.",
                                     player, group
                                 ),
                                 false,
@@ -1415,7 +1439,10 @@ async fn handle_command(
                         }
                         Err(e) => {
                             let msg = encode_system_chat_packet(
-                                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c{}", e),
+                                &format!(
+                                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c{}",
+                                    e
+                                ),
                                 false,
                             );
                             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1425,7 +1452,7 @@ async fn handle_command(
                 "info" => {
                     if args.len() < 2 {
                         let msg = encode_system_chat_packet(
-                            "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /group info <group>",
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /group info <group>",
                             false,
                         );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1435,7 +1462,10 @@ async fn handle_command(
                     let gm = ctx.group_mgr.lock().await;
                     if let Some(g) = gm.get_group(name) {
                         let m1 = encode_system_chat_packet(
-                            &format!("§b§l=== Group: §e{} §b§l===", g.name),
+                            &format!(
+                                "§x§f§f§a§a§0§0§l=== Group: §e{} §x§f§f§a§a§0§0§l===",
+                                g.name
+                            ),
                             false,
                         );
                         let m2 =
@@ -1460,19 +1490,23 @@ async fn handle_command(
                         let _ = tx.send(SessionCommand::SendRaw(m3));
                         let _ = tx.send(SessionCommand::SendRaw(m4));
                     } else {
-                        let msg =
-                            encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §cGroup not found.", false);
+                        let msg = encode_system_chat_packet(
+                            "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cGroup not found.",
+                            false,
+                        );
                         let _ = tx.send(SessionCommand::SendRaw(msg));
                     }
                 }
                 "list" => {
                     let gm = ctx.group_mgr.lock().await;
-                    let msg1 =
-                        encode_system_chat_packet("§b§l=== Zenith Groups & Permissions ===", false);
+                    let msg1 = encode_system_chat_packet(
+                        "§x§f§f§a§a§0§0§l=== Zenith Groups & Permissions ===",
+                        false,
+                    );
                     let _ = tx.send(SessionCommand::SendRaw(msg1));
                     for g in gm.all_groups() {
                         let line = format!(
-                            "§e• §b{} §8(§7weight: §a{}§8, §7staff: {}§8, §7members: §e{}§8)",
+                            "§e• §6{} §8(§7weight: §a{}§8, §7staff: {}§8, §7members: §e{}§8)",
                             g.name,
                             g.weight,
                             if g.is_staff { "§ayes" } else { "§cno" },
@@ -1488,7 +1522,10 @@ async fn handle_command(
                         false,
                     );
                     let m2 = encode_system_chat_packet(
-                        "§b§l  ᴢᴇɴɪᴛʜ §8» §fGroup & Tier Administration",
+                        &format!(
+                            "  {} §fGroup & Tier Administration",
+                            zenith_display::BRAND_PREFIX
+                        ),
                         false,
                     );
                     let m3 = encode_system_chat_packet(
@@ -1560,7 +1597,10 @@ async fn handle_command(
                 "§8§m                                                  §r",
                 false,
             );
-            let m2 = encode_system_chat_packet("§b§l  ᴢᴇɴɪᴛʜ §8» §fTransit Queue", false);
+            let m2 = encode_system_chat_packet(
+                &format!("  {} §fTransit Queue", zenith_display::BRAND_PREFIX),
+                false,
+            );
             let m3 = encode_system_chat_packet(
                 &format!("§7  Status: {} §7| Players: §e{}", status_str, total),
                 false,
@@ -1586,7 +1626,7 @@ async fn handle_command(
         "status" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to view backend status.",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cYou do not have permission to view backend status.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1598,7 +1638,10 @@ async fn handle_command(
                 "§8§m                                                  §r",
                 false,
             );
-            let m2 = encode_system_chat_packet("§b§l  ᴢᴇɴɪᴛʜ §8» §fBackend Server Health", false);
+            let m2 = encode_system_chat_packet(
+                &format!("  {} §fBackend Server Health", zenith_display::BRAND_PREFIX),
+                false,
+            );
             let (status_text, ping_text) = if !ctx.totem_enabled {
                 (
                     "§aOnline (Available)",
@@ -1642,7 +1685,7 @@ async fn handle_command(
         "broadcast" | "bc" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to broadcast.",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cYou do not have permission to broadcast.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1651,7 +1694,7 @@ async fn handle_command(
 
             if args.is_empty() {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /broadcast <message>",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /broadcast <message>",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1660,7 +1703,10 @@ async fn handle_command(
 
             let broadcast_text = args.join(" ");
             let chat = encode_system_chat_packet(
-                &format!("§b§lᴢᴇɴɪᴛʜ §8» §d§l[BROADCAST] §r§f{}", broadcast_text),
+                &format!(
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §d§l[BROADCAST] §r§f{}",
+                    broadcast_text
+                ),
                 false,
             );
 
@@ -1673,7 +1719,7 @@ async fn handle_command(
         "alert" => {
             if !is_staff {
                 let msg = encode_system_chat_packet(
-                    "§b§lᴢᴇɴɪᴛʜ §8» §cYou do not have permission to send alerts.",
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cYou do not have permission to send alerts.",
                     false,
                 );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1681,8 +1727,10 @@ async fn handle_command(
             }
 
             if args.is_empty() {
-                let msg =
-                    encode_system_chat_packet("§b§lᴢᴇɴɪᴛʜ §8» §cUsage: /alert <message>", false);
+                let msg = encode_system_chat_packet(
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §cUsage: /alert <message>",
+                    false,
+                );
                 let _ = tx.send(SessionCommand::SendRaw(msg));
                 return;
             }
@@ -1692,7 +1740,10 @@ async fn handle_command(
             let title = encode_title_packet("§c§lALERT");
             let sub = encode_subtitle_packet(&format!("§e{}", alert_text));
             let chat = encode_system_chat_packet(
-                &format!("§b§lᴢᴇɴɪᴛʜ §8» §c§l[ALERT] §e{}", alert_text),
+                &format!(
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §c§l[ALERT] §e{}",
+                    alert_text
+                ),
                 false,
             );
 
@@ -1713,7 +1764,10 @@ async fn handle_command(
                 ping.to_string()
             };
             let msg = encode_system_chat_packet(
-                &format!("§b§lᴢᴇɴɪᴛʜ §8» §7Your latency: §a{}ms", display_ping),
+                &format!(
+                    "§x§f§f§3§7§0§0§lᴢ§x§f§f§4§e§0§0§lᴇ§x§f§f§6§5§0§0§lɴ§x§f§f§7§c§0§0§lɪ§x§f§f§9§3§0§0§lᴛ§x§f§f§a§a§0§0§lʜ §8» §7Your latency: §a{}ms",
+                    display_ping
+                ),
                 false,
             );
             let _ = tx.send(SessionCommand::SendRaw(msg));
@@ -1723,7 +1777,10 @@ async fn handle_command(
                 "§8§m                                                  §r",
                 false,
             );
-            let m2 = encode_system_chat_packet("§b§l  ᴢᴇɴɪᴛʜ §8» §fAvailable Commands", false);
+            let m2 = encode_system_chat_packet(
+                &format!("  {} §fAvailable Commands", zenith_display::BRAND_PREFIX),
+                false,
+            );
             let m3 = encode_system_chat_packet(
                 "  §e/info     §8- §7View your position and estimated wait time",
                 false,

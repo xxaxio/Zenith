@@ -409,8 +409,10 @@ impl<S: ConnectionStream> VirtualSession<S> {
             .map(|c| c.load(Ordering::Relaxed))
             .unwrap_or(0);
         let status_json = format!(
-            r#"{{"version":{{"name":"26.3","protocol":{}}},"players":{{"max":100000,"online":{}}},"description":{{"text":"§bZenith §8» §7Virtual Holding & Transit"}}}}"#,
-            PROTOCOL_VERSION, online
+            r#"{{"version":{{"name":"26.3","protocol":{}}},"players":{{"max":100000,"online":{}}},"description":{{"text":"{} §8│ §7Virtual Holding & Transit"}}}}"#,
+            PROTOCOL_VERSION,
+            online,
+            zenith_display::BRAND_LOGO_LEGACY
         );
 
         let mut resp_payload = BytesMut::new();
@@ -707,7 +709,8 @@ impl<S: ConnectionStream> VirtualSession<S> {
         // 6. Clean, concise 1-line welcome in chat
         let user = self.username.clone().unwrap_or_else(|| "Player".into());
         let welcome_text = format!(
-            "§b§lᴢᴇɴɪᴛʜ §8» §7Welcome §f{}§7. Please hold while waiting in queue.",
+            "{} §7Welcome §f{}§7. Please hold while waiting in queue.",
+            zenith_display::BRAND_PREFIX,
             user
         );
         let mut chat_payload = BytesMut::with_capacity(welcome_text.len() + 16);
@@ -842,7 +845,7 @@ impl<S: ConnectionStream> VirtualSession<S> {
                                     } else {
                                         // Standalone fallback (e.g. tests)
                                         if cmd.as_str() == "ping" {
-                                            let _ = self.send_system_chat(&format!("§b§lᴢᴇɴɪᴛʜ §8» §7Latency: §a{}ms", self.ping_ms)).await;
+                                            let _ = self.send_system_chat(&format!("{} §7Latency: §x§f§f§a§a§0§0{}ms", zenith_display::BRAND_PREFIX, self.ping_ms)).await;
                                         }
                                     }
                                 }
@@ -909,7 +912,7 @@ mod tests {
             let (id, payload) = zenith_wire::read_raw_packet(&mut c, 1024).await.unwrap();
             assert_eq!(id, 0x00);
             let s = read_string(&mut &payload[..], 1024).unwrap();
-            assert!(s.contains("Zenith"));
+            assert!(s.contains("Virtual Holding & Transit"));
 
             // 4. Ping
             write_raw_packet(&mut c, 0x01, &[1, 2, 3, 4, 5, 6, 7, 8])
